@@ -10,7 +10,7 @@ class AuthService:
         self.db_path = db_path
         self.sessions: Dict[str, Dict[str, Any]] = {}
         self._init_db()
-    
+
     def _init_db(self):
         """Initialize the user database"""
         with sqlite3.connect(self.db_path) as conn:

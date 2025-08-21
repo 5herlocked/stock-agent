@@ -171,7 +171,7 @@ Examples:
   %(prog)s reset-password john
         """
     )
-    
+
     parser.add_argument(
         '--db-path', 
         default='users.db',
@@ -200,7 +200,7 @@ Examples:
     # Reset password command
     reset_parser = subparsers.add_parser('reset-password', help='Reset a user\'s password')
     reset_parser.add_argument('username', help='Username to reset password for')
-    
+
     args = parser.parse_args()
     
     if not args.command:
