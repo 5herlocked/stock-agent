@@ -13,10 +13,12 @@ dependencies = [
     "firebase-admin",
     "jinja2",
     "robyn",
+    "bcrypt",
 ]
 
 [project.scripts]
 "stock_agent" = "stock_agent.main:main"
+"stock-admin" = "stock_agent.cli.admin:main"
 
 [build-system]
 requires = ["hatchling"]
