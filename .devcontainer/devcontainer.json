@@ -18,18 +18,13 @@
 	//
 	// Browse more options at: https://hub.docker.com/r/microsoft/devcontainers
 	// or build your own using the Dockerfile option below.
-	"image": "mcr.microsoft.com/devcontainers/universal:3.0.3"
-	// Use "build":
-	// instead of the image to use a Dockerfile to build an image.
-	// "build": {
-    //     "context": ".",
-    //     "dockerfile": "Dockerfile"
-    // }
+	"image": "mcr.microsoft.com/devcontainers/universal:3.0.3",
+	
 	// Features add additional features to your environment. See https://containers.dev/features
-	// Beware: features are not supported on all platforms and may have unintended side-effects.
-	// "features": {
-    //   "ghcr.io/devcontainers/features/docker-in-docker": {
-    //     "moby": false
-    //   }
-    // }
+	"features": {
+		"ghcr.io/astral-sh/uv-devcontainer-feature/uv:latest": {}
+	},
+	
+	// Commands to run after the container is created
+	"postCreateCommand": "uv --version && echo 'uv is ready for fast Python package management!'"
 }
