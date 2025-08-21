@@ -1,15 +1,15 @@
 import os
+import pathlib
+
 from dotenv import load_dotenv
 from .flat_downloader import FlatFileDownloader
-
-from robyn import Robyn, Request, serve_file
-
-from robyn.templating import JinjaTemplate
-import pathlib
 from .notification_service import NotificationService
 
-current_file_path = pathlib.Path(__file__).parent.resolve()
-JINJA_TEMPLATE = JinjaTemplate(os.path.join(current_file_path, "templates"))
+from robyn import Robyn, Request, serve_file
+from robyn.templating import JinjaTemplate
+
+src_path = pathlib.Path(__file__).parent.resolve()
+JINJA_TEMPLATE = JinjaTemplate(os.path.join(src_path, "templates"))
 
 app = Robyn(__file__)
 # app.serve_directory("/static", os.path.join(current_file_path, "static"))
@@ -21,7 +21,7 @@ context = {
 
 @app.get("/firebase-messaging-sw.js")
 async def firebase_service_worker(request: Request):
-    return serve_file(os.path.join(current_file_path, "static", "firebase-messaging-sw.js"))
+    return serve_file(os.path.join(src_path, "static", "firebase-messaging-sw.js"))
 
 @app.get("/")
 async def index(request: Request):
