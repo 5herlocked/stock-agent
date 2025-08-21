@@ -37,6 +37,14 @@ def create_web_app() -> Robyn:
         if session_token:
             return auth_service.get_user_from_session(session_token)
         return None
+    
+    def get_user_from_bearer_token(request: Request) -> Optional[User]:
+        """Get user from Bearer token in Authorization header"""
+        auth_header = request.headers.get('authorization', '')
+        if auth_header.startswith('Bearer '):
+            session_token = auth_header[7:]  # Remove 'Bearer ' prefix
+            return auth_service.get_user_from_session(session_token)
+        return None
 
     def require_auth(func):
         """Decorator to require authentication"""
@@ -169,19 +177,21 @@ def create_web_app() -> Robyn:
         template = jinja_template.render_template("report.html", **context)
         return template
     
-    # API routes
+    # API routes - require session token authentication
     @app.get('/api/vapid-public-key')
     def get_vapid_public_key(request: Request):
-        user = get_current_user(request)
+        # Check for user session (cookie or Bearer token)
+        user = get_current_user(request) or get_user_from_bearer_token(request)
         if not user:
-            return {'error': 'Unauthorized'}, 401
+            return {'error': 'Unauthorized - Valid session token required'}, 401
         return {'vapidPublicKey': os.getenv('FIREBASE_VAPID_PUBLIC_KEY')}
     
     @app.get('/api/firebase-config')
     async def get_firebase_config(request: Request):
-        user = get_current_user(request)
+        # Check for user session (cookie or Bearer token)
+        user = get_current_user(request) or get_user_from_bearer_token(request)
         if not user:
-            return {'error': 'Unauthorized'}, 401
+            return {'error': 'Unauthorized - Valid session token required'}, 401
         
         config = {
             "apiKey": os.environ.get("FIREBASE_API_KEY"),
@@ -191,5 +201,5 @@ def create_web_app() -> Robyn:
             "appId": os.environ.get("FIREBASE_APP_ID")
         }
         return config
-    
+
     return app
