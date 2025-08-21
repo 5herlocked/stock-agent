@@ -1,5 +1,5 @@
 [project]
-name = "stock-agent"
+name = "stock_agent"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -11,6 +11,8 @@ dependencies = [
     "pandas",
     "python-dotenv",
     "firebase-admin",
+    "jinja2",
+    "robyn",
 ]
 
 [project.scripts]

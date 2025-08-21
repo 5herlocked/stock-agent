@@ -57,17 +57,3 @@ class StockMonitoringService:
 
         except Exception as e:
             print(f"Error in market check: {str(e)}")
-
-    async def run(self):
-        """Run the service continuously"""
-        while True:
-            # Only run during market hours (9:30 AM - 4:00 PM ET)
-            now = datetime.now()
-            market_open = time(9, 30)
-            market_close = time(16, 0)
-
-            if market_open <= now.time() <= market_close:
-                await self.run_market_check()
-
-            # Wait 5 minutes before next check
-            await asyncio.sleep(300)
