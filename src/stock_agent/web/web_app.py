@@ -71,11 +71,26 @@ def create_web_app() -> Robyn:
     
     @app.post("/login")
     async def login_submit(request: Request):
-        form_data = request.form_data
-        username = form_data.get('username', '')
-        password = form_data.get('password', '')
-
+        import json
+        
+        try:
+            # Parse JSON body
+            if isinstance(request.body, bytes):
+                body_str = request.body.decode('utf-8')
+            else:
+                body_str = request.body
+            
+            data = json.loads(body_str)
+            username = data.get('username', '')
+            password = data.get('password', '')
+            
+            
+        except (json.JSONDecodeError, AttributeError) as e:
+            template = jinja_template.render_template("login.html", error="Invalid request format")
+            return template
+        
         user = auth_service.authenticate_user(username, password)
+
         if user:
             session_token = auth_service.create_session(user)
             return Response(

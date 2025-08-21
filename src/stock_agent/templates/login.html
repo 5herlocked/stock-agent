@@ -73,7 +73,7 @@
         <div class="error">{{ error }}</div>
         {% endif %}
         
-        <form method="post" action="/login">
+        <form id="loginForm">
             <div class="form-group">
                 <label for="username">Username:</label>
                 <input type="text" id="username" name="username" required>
@@ -87,6 +87,38 @@
             <button type="submit">Login</button>
         </form>
         
+        <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                if (response.redirected || response.status === 302) {
+                    window.location.href = '/';
+                } else {
+                    const result = await response.text();
+                    document.body.innerHTML = result;
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('Login failed. Please try again.');
+            }
+        });
+        </script>
+
         <div class="admin-note">
             Contact your administrator for account access.
         </div>
