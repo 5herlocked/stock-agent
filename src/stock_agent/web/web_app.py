@@ -21,11 +21,23 @@ def create_web_app() -> Robyn:
     
     def get_current_user(request: Request) -> Optional[User]:
         """Get current user from session cookie"""
-        session_token = request.cookies.get('session_token')
+        # Parse cookies from Cookie header
+        cookie_header = request.headers.get('cookie', '')
+        session_token = None
+        
+        if cookie_header:
+            # Parse cookies manually since Robyn doesn't have request.cookies
+            cookies = {}
+            for cookie in cookie_header.split(';'):
+                if '=' in cookie:
+                    key, value = cookie.strip().split('=', 1)
+                    cookies[key] = value
+            session_token = cookies.get('session_token')
+        
         if session_token:
             return auth_service.get_user_from_session(session_token)
         return None
-    
+
     def require_auth(func):
         """Decorator to require authentication"""
         def wrapper(request: Request):
@@ -68,12 +80,12 @@ def create_web_app() -> Robyn:
             response = Response()
             response.status_code = 302
             response.headers['Location'] = '/'
-            response.cookies['session_token'] = session_token
+            response.headers['Set-Cookie'] = f'session_token={session_token}; Path=/; HttpOnly'
             return response
         else:
             template = jinja_template.render_template("login.html", error="Invalid credentials")
             return template
-    
+
     
     @app.post("/logout")
     async def logout(request: Request):
@@ -84,9 +96,9 @@ def create_web_app() -> Robyn:
         response = Response()
         response.status_code = 302
         response.headers['Location'] = '/login'
-        response.cookies['session_token'] = ''
+        response.headers['Set-Cookie'] = 'session_token=; Path=/; HttpOnly; Max-Age=0'
         return response
-    
+
     # Protected routes
     @app.get("/")
     async def index(request: Request):
