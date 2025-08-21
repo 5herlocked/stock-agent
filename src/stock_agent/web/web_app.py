@@ -22,7 +22,7 @@ def create_web_app() -> Robyn:
     def get_current_user(request: Request) -> Optional[User]:
         """Get current user from session cookie"""
         # Parse cookies from Cookie header
-        cookie_header = request.headers.get('cookie', '')
+        cookie_header = request.headers.get('cookie')
         session_token = None
         
         if cookie_header:
@@ -60,28 +60,32 @@ def create_web_app() -> Robyn:
     async def login_page(request: Request):
         user = get_current_user(request)
         if user:
-            response = Response()
-            response.status_code = 302
-            response.headers['Location'] = '/'
-            return response
-        
+            return Response(
+                status_code=302,
+                description="",
+                headers={"Location": "/"}
+            )
+
         template = jinja_template.render_template("login.html")
         return template
     
     @app.post("/login")
     async def login_submit(request: Request):
-        form_data = request.form
+        form_data = request.form_data
         username = form_data.get('username', '')
         password = form_data.get('password', '')
-        
+
         user = auth_service.authenticate_user(username, password)
         if user:
             session_token = auth_service.create_session(user)
-            response = Response()
-            response.status_code = 302
-            response.headers['Location'] = '/'
-            response.headers['Set-Cookie'] = f'session_token={session_token}; Path=/; HttpOnly'
-            return response
+            return Response(
+                status_code=302,
+                description="",
+                headers={
+                    "Location": "/",
+                    "Set-Cookie": f'session_token={session_token}; Path=/; HttpOnly'
+                }
+            )
         else:
             template = jinja_template.render_template("login.html", error="Invalid credentials")
             return template
@@ -89,26 +93,41 @@ def create_web_app() -> Robyn:
     
     @app.post("/logout")
     async def logout(request: Request):
-        session_token = request.cookies.get('session_token')
+        # Parse cookies from Cookie header
+        cookie_header = request.headers.get('cookie', '')
+        session_token = None
+        
+        if cookie_header:
+            cookies = {}
+            for cookie in cookie_header.split(';'):
+                if '=' in cookie:
+                    key, value = cookie.strip().split('=', 1)
+                    cookies[key] = value
+            session_token = cookies.get('session_token')
+        
         if session_token:
             auth_service.logout(session_token)
         
-        response = Response()
-        response.status_code = 302
-        response.headers['Location'] = '/login'
-        response.headers['Set-Cookie'] = 'session_token=; Path=/; HttpOnly; Max-Age=0'
-        return response
+        return Response(
+            status_code=302,
+            description="",
+            headers={
+                "Location": "/login",
+                "Set-Cookie": "session_token=; Path=/; HttpOnly; Max-Age=0"
+            }
+        )
 
     # Protected routes
     @app.get("/")
     async def index(request: Request):
         user = get_current_user(request)
         if not user:
-            response = Response()
-            response.status_code = 302
-            response.headers['Location'] = '/login'
-            return response
-        
+            return Response(
+                status_code=302,
+                description="",
+                headers={"Location": "/login"}
+            )
+
         context = {
             "framework": "Robyn",
             "templating_engine": "Jinja2",
@@ -121,11 +140,12 @@ def create_web_app() -> Robyn:
     async def todays_report(request: Request):
         user = get_current_user(request)
         if not user:
-            response = Response()
-            response.status_code = 302
-            response.headers['Location'] = '/login'
-            return response
-        
+            return Response(
+                status_code=302,
+                description="",
+                headers={"Location": "/login"}
+            )
+
         context = {
             "framework": "Robyn",
             "templating_engine": "Jinja2",
