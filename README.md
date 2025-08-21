@@ -37,7 +37,7 @@ uv pip install -r requirements.txt
 3. Configure Firebase
 - Create a Firebase project
 - Generate service account credentials
-- Save credentials as `firebase-credentials.json`
+- Save credentials as `firebase_creds.json`
 
 4. Set environment variables in `.env`
 ```env
