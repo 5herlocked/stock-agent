@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stock Report - Stock Agent</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eee;
+        }
+        .user-info {
+            font-size: 14px;
+            color: #666;
+        }
+        .logout-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .logout-btn:hover {
+            background-color: #c82333;
+        }
+        .nav-link {
+            color: #007bff;
+            text-decoration: none;
+            margin-right: 15px;
+        }
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+        .report-section {
+            margin-bottom: 30px;
+        }
+        .report-section h2 {
+            color: #333;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        .placeholder {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 4px;
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Today's Stock Report</h1>
+                <nav>
+                    <a href="/" class="nav-link">Dashboard</a>
+                    <a href="/report" class="nav-link">Report</a>
+                </nav>
+            </div>
+            {% if user %}
+            <div class="user-info">
+                Welcome, {{ user.username }}! 
+                <form method="post" action="/logout" style="display: inline;">
+                    <button type="submit" class="logout-btn">Logout</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="report-section">
+            <h2>Market Overview</h2>
+            <div class="placeholder">
+                Market data will be displayed here once stock processing is implemented.
+            </div>
+        </div>
+
+        <div class="report-section">
+            <h2>Top Gainers</h2>
+            <div class="placeholder">
+                Top gaining stocks will be shown here.
+            </div>
+        </div>
+
+        <div class="report-section">
+            <h2>Top Losers</h2>
+            <div class="placeholder">
+                Top losing stocks will be shown here.
+            </div>
+        </div>
+
+        <div class="report-section">
+            <h2>Volume Leaders</h2>
+            <div class="placeholder">
+                Stocks with highest trading volume will be displayed here.
+            </div>
+        </div>
+    </div>
+</body>
+</html>
