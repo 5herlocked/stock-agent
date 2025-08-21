@@ -11,3 +11,4 @@ wheels/
 .dev.env
 
 firebase_creds.json
+*.db

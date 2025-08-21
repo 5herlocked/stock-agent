@@ -1,11 +1,12 @@
-from .flat_downloader import FlatFileDownloader
-from .data_processor import DataProcessor
+# from .flat_downloader import FlatFileDownloader
+# from .data_processor import DataProcessor
 from ..notification_service import NotificationService
 
 class StockService:
     def __init__(self):
-        self.downloader = FlatFileDownloader()
-        self.notification_service = NotificationService()
+        # self.downloader = FlatFileDownloader()
+        # self.notification_service = NotificationService()
+        pass
     
     def get_latest_data(self, prefix='us_stocks_sip', max_items=10):
         """Get latest stock data files"""
