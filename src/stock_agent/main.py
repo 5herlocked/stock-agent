@@ -1,11 +1,12 @@
 import os
 from dotenv import load_dotenv
-from stock_agent.flat_downloader import FlatFileDownloader
+from .flat_downloader import FlatFileDownloader
 
 from robyn import Robyn, Request, serve_file
 
 from robyn.templating import JinjaTemplate
 import pathlib
+from .notification_service import NotificationService
 
 current_file_path = pathlib.Path(__file__).parent.resolve()
 JINJA_TEMPLATE = JinjaTemplate(os.path.join(current_file_path, "templates"))
