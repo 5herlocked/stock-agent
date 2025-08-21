@@ -81,7 +81,7 @@ class AuthService:
                     is_active=bool(row[5])
                 )
         return None
-    
+
     def create_session(self, user: User) -> str:
         """Create a session token for authenticated user"""
         session_token = secrets.token_urlsafe(32)
