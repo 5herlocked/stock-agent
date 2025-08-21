@@ -25,8 +25,8 @@ class NotificationService:
         cred = credentials.Certificate(creds_path)
         firebase_admin.initialize_app(cred)
 
-    def send_notification(self, token: str, alert: StockAlert) -> bool:
-        """Send a notification to a specific device token"""
+    def send_notification_to_topic(self, topic: str, alert: StockAlert) -> bool:
+        """Send a notification to all devices subscribed to a specific topic"""
         try:
             message = messaging.Message(
                 data={
@@ -42,11 +42,29 @@ class NotificationService:
                          f"({'up' if alert.percent_change > 0 else 'down'}) " \
                          f"to ${alert.current_price:.2f}"
                 ),
-                token=token,
+                topic=topic,
             )
 
             response = messaging.send(message)
             return bool(response)
         except Exception as e:
             print(f"Error sending notification: {str(e)}")
+            return False
+
+    def subscribe_to_topic(self, token: str, topic: str) -> bool:
+        """Subscribe a device token to a specific topic"""
+        try:
+            response = messaging.subscribe_to_topic(tokens=[token], topic=topic)
+            return response.success_count > 0
+        except Exception as e:
+            print(f"Error subscribing to topic: {str(e)}")
+            return False
+
+    def unsubscribe_from_topic(self, token: str, topic: str) -> bool:
+        """Unsubscribe a device token from a specific topic"""
+        try:
+            response = messaging.unsubscribe_from_topic(tokens=[token], topic=topic)
+            return response.success_count > 0
+        except Exception as e:
+            print(f"Error unsubscribing from topic: {str(e)}")
             return False
