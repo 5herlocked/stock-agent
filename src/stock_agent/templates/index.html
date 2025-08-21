@@ -7,10 +7,47 @@
 
         <!-- HTMX -->
         <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+        <style>
+            .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #eee;
+            }
+            .user-info {
+                font-size: 14px;
+                color: #666;
+            }
+            .logout-btn {
+                background-color: #dc3545;
+                color: white;
+                border: none;
+                padding: 5px 10px;
+                border-radius: 3px;
+                cursor: pointer;
+                font-size: 12px;
+                margin-left: 10px;
+            }
+            .logout-btn:hover {
+                background-color: #c82333;
+            }
+        </style>
     </head>
     <body>
         <div class="container">
-            <h1>Stock Agent Notifications</h1>
+            <div class="header">
+                <h1>Stock Agent Notifications</h1>
+                {% if user %}
+                <div class="user-info">
+                    Welcome, {{ user.username }}! 
+                    <form method="post" action="/logout" style="display: inline;">
+                        <button type="submit" class="logout-btn">Logout</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
             <div id="notification-status">
                 Checking notification permission...
             </div>
