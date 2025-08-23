@@ -1,9 +1,9 @@
 import sqlite3
 import bcrypt
 import secrets
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
-from .models import User
+from .models import User, StockFavorite
 
 class AuthService:
     def __init__(self, db_path: str = "users.db"):
@@ -24,8 +24,20 @@ class AuthService:
                     is_active BOOLEAN DEFAULT 1
                 )
             """)
+            
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS user_favorites (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    ticker TEXT NOT NULL,
+                    company_name TEXT,
+                    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (id),
+                    UNIQUE(user_id, ticker)
+                )
+            """)
             conn.commit()
-    
+
     def _hash_password(self, password: str) -> str:
         """Hash password with salt using bcrypt"""
         salt = bcrypt.gensalt()
@@ -137,3 +149,46 @@ class AuthService:
         ]
         for token in expired_tokens:
             del self.sessions[token]
+    
+    def add_favorite(self, user_id: int, ticker: str, company_name: Optional[str] = None) -> bool:
+        """Add a stock to user's favorites"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute(
+                    "INSERT INTO user_favorites (user_id, ticker, company_name) VALUES (?, ?, ?)",
+                    (user_id, ticker.upper(), company_name)
+                )
+                conn.commit()
+                return True
+        except sqlite3.IntegrityError:
+            return False  # Already exists
+    
+    def remove_favorite(self, user_id: int, ticker: str) -> bool:
+        """Remove a stock from user's favorites"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                "DELETE FROM user_favorites WHERE user_id = ? AND ticker = ?",
+                (user_id, ticker.upper())
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+    
+    def get_user_favorites(self, user_id: int) -> List[StockFavorite]:
+        """Get all favorites for a user"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                "SELECT id, user_id, ticker, company_name, added_at FROM user_favorites WHERE user_id = ? ORDER BY added_at DESC",
+                (user_id,)
+            )
+            rows = cursor.fetchall()
+            
+            favorites = []
+            for row in rows:
+                favorites.append(StockFavorite(
+                    id=row[0],
+                    user_id=row[1],
+                    ticker=row[2],
+                    company_name=row[3],
+                    added_at=datetime.fromisoformat(row[4]) if row[4] else None
+                ))
+            return favorites
