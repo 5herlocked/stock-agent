@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stock Search - Stock Agent</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eee;
+        }
+        .user-info {
+            font-size: 14px;
+            color: #666;
+        }
+        .logout-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .logout-btn:hover {
+            background-color: #c82333;
+        }
+        .nav-link {
+            color: #007bff;
+            text-decoration: none;
+            margin-right: 15px;
+        }
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+        .search-section {
+            margin-bottom: 30px;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .search-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .search-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .search-btn:hover {
+            background-color: #0056b3;
+        }
+        .search-results {
+            margin-top: 20px;
+        }
+        .stock-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            background: #f9f9f9;
+        }
+        .stock-info {
+            flex: 1;
+        }
+        .stock-ticker {
+            font-weight: bold;
+            font-size: 18px;
+            color: #333;
+        }
+        .stock-name {
+            color: #666;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .favorite-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .favorite-btn:hover {
+            background-color: #218838;
+        }
+        .favorite-btn.favorited {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .favorite-btn.favorited:hover {
+            background-color: #e0a800;
+        }
+        .favorites-section {
+            margin-top: 40px;
+        }
+        .favorites-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .favorite-item {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            position: relative;
+        }
+        .remove-favorite {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .remove-favorite:hover {
+            background-color: #c82333;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+        .error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Stock Search & Favorites</h1>
+                <nav>
+                    <a href="/" class="nav-link">Dashboard</a>
+                    <a href="/stocks" class="nav-link">Search Stocks</a>
+                </nav>
+            </div>
+            {% if user %}
+            <div class="user-info">
+                Welcome, {{ user.username }}! 
+                <form method="post" action="/logout" style="display: inline;">
+                    <button type="submit" class="logout-btn">Logout</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="search-section">
+            <h2>Search Stocks</h2>
+            <div class="search-box">
+                <input type="text" id="searchInput" class="search-input" placeholder="Enter stock ticker (e.g., AAPL, MSFT, TSLA)">
+                <button onclick="searchStocks()" class="search-btn">Search</button>
+            </div>
+            <div id="searchResults" class="search-results"></div>
+        </div>
+
+        <div class="favorites-section">
+            <h2>Your Favorite Stocks</h2>
+            <div id="favoritesList" class="favorites-list">
+                <div class="loading">Loading your favorites...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let userFavorites = new Set();
+
+        // Load user favorites on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFavorites();
+        });
+
+        // Search stocks
+        async function searchStocks() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
+
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.innerHTML = '<div class="loading">Searching...</div>';
+
+            try {
+                const response = await fetch(`/api/search-stocks?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    resultsDiv.innerHTML = `<div class="error">${data.error}</div>`;
+                    return;
+                }
+
+                if (data.results && data.results.length > 0) {
+                    resultsDiv.innerHTML = data.results.map(stock => `
+                        <div class="stock-item">
+                            <div class="stock-info">
+                                <div class="stock-ticker">${stock.ticker}</div>
+                                <div class="stock-name">${stock.company_name || 'N/A'}</div>
+                            </div>
+                            <button onclick="toggleFavorite('${stock.ticker}', '${stock.company_name || ''}')" 
+                                    class="favorite-btn ${userFavorites.has(stock.ticker) ? 'favorited' : ''}"
+                                    id="fav-${stock.ticker}">
+                                ${userFavorites.has(stock.ticker) ? 'Remove' : 'Add to Favorites'}
+                            </button>
+                        </div>
+                    `).join('');
+                } else {
+                    resultsDiv.innerHTML = '<div class="error">No stocks found for that search.</div>';
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="error">Error searching stocks. Please try again.</div>';
+            }
+        }
+
+        // Load user favorites
+        async function loadFavorites() {
+            try {
+                const response = await fetch('/api/favorites');
+                const data = await response.json();
+
+                if (data.error) {
+                    document.getElementById('favoritesList').innerHTML = `<div class="error">${data.error}</div>`;
+                    return;
+                }
+
+                userFavorites = new Set(data.favorites.map(f => f.ticker));
+
+                if (data.favorites.length > 0) {
+                    document.getElementById('favoritesList').innerHTML = data.favorites.map(fav => `
+                        <div class="favorite-item">
+                            <button onclick="removeFavorite('${fav.ticker}')" class="remove-favorite">×</button>
+                            <div class="stock-ticker">${fav.ticker}</div>
+                            <div class="stock-name">${fav.company_name || 'N/A'}</div>
+                            <div style="font-size: 12px; color: #666; margin-top: 10px;">
+                                Added: ${new Date(fav.added_at).toLocaleDateString()}
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    document.getElementById('favoritesList').innerHTML = '<div class="loading">No favorite stocks yet. Search and add some!</div>';
+                }
+            } catch (error) {
+                document.getElementById('favoritesList').innerHTML = '<div class="error">Error loading favorites.</div>';
+            }
+        }
+
+        // Toggle favorite
+        async function toggleFavorite(ticker, companyName) {
+            try {
+                const method = userFavorites.has(ticker) ? 'DELETE' : 'POST';
+                const response = await fetch('/api/favorites', {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ticker: ticker,
+                        company_name: companyName
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    if (method === 'POST') {
+                        userFavorites.add(ticker);
+                    } else {
+                        userFavorites.delete(ticker);
+                    }
+                    
+                    // Update button
+                    const btn = document.getElementById(`fav-${ticker}`);
+                    if (btn) {
+                        btn.textContent = userFavorites.has(ticker) ? 'Remove' : 'Add to Favorites';
+                        btn.className = `favorite-btn ${userFavorites.has(ticker) ? 'favorited' : ''}`;
+                    }
+                    
+                    // Reload favorites list
+                    loadFavorites();
+                }
+            } catch (error) {
+                console.error('Error toggling favorite:', error);
+            }
+        }
+
+        // Remove favorite
+        async function removeFavorite(ticker) {
+            await toggleFavorite(ticker, '');
+        }
+
+        // Allow Enter key to search
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchStocks();
+            }
+        });
+    </script>
+</body>
+</html>
