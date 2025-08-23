@@ -62,8 +62,18 @@ class StockService:
                 print(f"{ticker}: {latest_metrics.volume:,.0f} shares")
     """
     def __init__(self):
-        self.stock_worker = PolygonWorker()
-        self.notification_service = NotificationService()
+        try:
+            self.stock_worker = PolygonWorker()
+        except Exception:
+            # Fallback if no API key or polygon service unavailable
+            self.stock_worker = None
+        
+        try:
+            self.notification_service = NotificationService()
+        except Exception:
+            # Fallback if Firebase not configured
+            self.notification_service = None
+        
         self.current_summary = None
 
     def generate_market_summary(self):
@@ -111,8 +121,10 @@ class StockService:
 
     def send_notification(self, message, topic=""):
         """Send stock-related notifications"""
-        return self.notification_service.send_notification_to_topic(topic, message)
-    
+        if self.notification_service:
+            return self.notification_service.send_notification_to_topic(topic, message)
+        return False
+
     def search_stocks(self, query: str) -> List[Dict]:
         """Search for stocks by ticker or company name"""
         # Mock stock search - in production, this would call Polygon API

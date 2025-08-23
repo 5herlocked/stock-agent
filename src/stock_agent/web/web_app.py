@@ -6,7 +6,7 @@ from robyn import Robyn, Request, Response, serve_file
 from robyn.templating import JinjaTemplate
 
 from ..auth import AuthService, User
-from ..services.stock_service import StockService
+from ..polygon.stock_service import StockService
 
 def create_web_app() -> Robyn:
     """Create and configure the web application"""
