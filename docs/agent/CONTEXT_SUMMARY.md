@@ -29,7 +29,7 @@
 ### Stock Features
 - **Personal favorites**: Per-user stock watchlists with persistent storage
 - **Real-time dashboard**: Auto-refreshing price data every 30 seconds
-- **Stock search**: Query-based discovery with mock company database
+- **Stock search**: Query-based discovery via Polygon.io API
 - **Major indexes**: DJI, SPX, IXIC, SWTSX with realistic price simulation
 - **Mobile responsive**: Touch-friendly interface optimized for phones
 
@@ -132,9 +132,7 @@ context = {
 ## Common Operations
 
 ### Adding New Stock Data
-1. Update `mock_stocks` list in `polygon/stock_service.py`
-2. Add base price to `stock_prices` dictionary
-3. Stock automatically available in search
+Stock data comes directly from Polygon.io API. All publicly traded stocks are automatically available through the search functionality - no manual addition needed.
 
 ### Adding New Routes
 1. Add route function in `web/web_app.py`

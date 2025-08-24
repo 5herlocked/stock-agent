@@ -130,14 +130,12 @@ class StockService:
             raise Exception("Polygon API not available - check POLYGON_API_KEY")
         
         # Use Polygon API to search for stocks
-        # For now, return the query as a ticker if it looks valid
-        query = query.upper().strip()
-        
-        if len(query) <= 5 and query.isalpha():
-            # Return the ticker - Polygon API will validate it when we get price data
-            return [{'ticker': query, 'company_name': f'{query}'}]
-        
-        return []
+        try:
+            results = self.stock_worker.search_tickers(query.strip(), limit=10)
+            return results
+        except Exception as e:
+            print(f"Error searching stocks: {e}")
+            return []
 
     def get_stock_data(self, tickers: List[str]) -> List[StockData]:
         """Get current stock data for given tickers using Polygon API"""
@@ -148,13 +146,54 @@ class StockService:
         
         for ticker in tickers:
             try:
-                # Use Polygon API to get real stock data
-                # This would need to be implemented in polygon_worker.py
-                # For now, raise an exception to indicate real API is needed
-                raise NotImplementedError(f"Real Polygon API integration needed for ticker: {ticker}")
+                # Try to get snapshot data first (most comprehensive)
+                snapshot_data = self.stock_worker.get_snapshot(ticker)
+                
+                if snapshot_data:
+                    # Get ticker details for company name
+                    details = self.stock_worker.get_ticker_details(ticker)
+                    company_name = details.get('company_name', f"{ticker} Corporation") if details else f"{ticker} Corporation"
+                    
+                    # Format market cap if available
+                    market_cap = "N/A"
+                    if details and details.get('market_cap'):
+                        mc = details['market_cap']
+                        if mc >= 1e12:
+                            market_cap = f"${mc/1e12:.1f}T"
+                        elif mc >= 1e9:
+                            market_cap = f"${mc/1e9:.1f}B"
+                        elif mc >= 1e6:
+                            market_cap = f"${mc/1e6:.1f}M"
+                        else:
+                            market_cap = f"${mc:,.0f}"
+                    
+                    stock_data.append(StockData(
+                        ticker=ticker,
+                        company_name=company_name,
+                        price=snapshot_data.get('close', 0.0),
+                        change=snapshot_data.get('change', 0.0),
+                        change_percent=snapshot_data.get('change_percent', 0.0),
+                        volume=snapshot_data.get('volume', 0),
+                        market_cap=market_cap
+                    ))
+                else:
+                    # Fallback to previous close if snapshot fails
+                    prev_close_data = self.stock_worker.get_previous_close(ticker)
+                    if prev_close_data:
+                        details = self.stock_worker.get_ticker_details(ticker)
+                        company_name = details.get('company_name', f"{ticker} Corporation") if details else f"{ticker} Corporation"
+                        
+                        stock_data.append(StockData(
+                            ticker=ticker,
+                            company_name=company_name,
+                            price=prev_close_data.get('close', 0.0),
+                            change=0.0,  # Can't calculate change without previous day
+                            change_percent=0.0,
+                            volume=prev_close_data.get('volume', 0),
+                            market_cap="N/A"
+                        ))
                 
             except Exception as e:
-                # If we can't get real data, skip this ticker
                 print(f"Failed to get data for {ticker}: {e}")
                 continue
         
@@ -162,8 +201,14 @@ class StockService:
 
     def get_major_indexes(self) -> List[StockData]:
         """Get data for major stock indexes using Polygon API"""
-        # Major market indexes - these would need real Polygon API implementation
-        major_tickers = ['DJI', 'SPX', 'IXIC', 'SWTSX']
+        # Major market indexes with correct Polygon ticker symbols
+        # Note: Some indexes may use different symbols in Polygon API
+        major_tickers = [
+            'I:DJI',    # Dow Jones Industrial Average
+            'I:SPX',    # S&P 500
+            'I:COMP',   # NASDAQ Composite (IXIC alternative)
+            'SWTSX'     # Schwab Total Stock Market Index (if available)
+        ]
         return self.get_stock_data(major_tickers)
 
 if __name__ == "__main__":
