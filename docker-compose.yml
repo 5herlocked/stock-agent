@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  stock-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stock-agent
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Server configuration
+      - HOST=0.0.0.0
+      - PORT=8080
+
+      # Production settings
+      - GENERATE_MARKET_SUMMARY=true
+
+      # Database location (mounted volume)
+      - DATABASE_PATH=/app/data/users.db
+
+      # Firebase configuration (override with your values)
+      - FIREBASE_CREDS_PATH=/app/firebase_creds.json
+      - FIREBASE_API_KEY=${FIREBASE_API_KEY}
+      - FIREBASE_AUTH_DOMAIN=${FIREBASE_AUTH_DOMAIN}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - FIREBASE_STORAGE_BUCKET=${FIREBASE_STORAGE_BUCKET}
+      - FIREBASE_MESSAGING_SENDER_ID=${FIREBASE_MESSAGING_SENDER_ID}
+      - FIREBASE_APP_ID=${FIREBASE_APP_ID}
+      - FIREBASE_VAPID_PUBLIC_KEY=${FIREBASE_VAPID_PUBLIC_KEY}
+
+      # API Keys (set in .env file)
+      - POLYGON_API_KEY=${POLYGON_API_KEY}
+
+      # Optional: Data directory
+      - DATA_DIR=/app/data
+
+      # Logging
+      - LOG_LEVEL=INFO
+
+    volumes:
+      # Database persistence
+      - stock_agent_data:/app/data
+
+      # Logs persistence
+      - stock_agent_logs:/app/logs
+
+      # Optional: Mount config files from host
+      # - ./firebase_creds.json:/app/firebase_creds.json:ro
+      # - ./.env:/app/.env:ro
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Named volumes for data persistence
+volumes:
+  stock_agent_data:
+    driver: local
+    name: stock_agent_data
+
+  stock_agent_logs:
+    driver: local
+    name: stock_agent_logs
+
+# Optional: Custom network
+networks:
+  default:
+    name: stock_agent_network
