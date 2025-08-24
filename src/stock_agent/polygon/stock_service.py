@@ -138,76 +138,80 @@ class StockService:
             return []
 
     def get_stock_data(self, tickers: List[str]) -> List[StockData]:
-        """Get current stock data for given tickers using Polygon API"""
+        """Get stock data for given tickers using Polygon API grouped aggregates"""
         if not self.stock_worker:
             raise Exception("Polygon API not available - check POLYGON_API_KEY")
         
         stock_data = []
         
-        for ticker in tickers:
-            try:
-                # Try to get snapshot data first (most comprehensive)
-                snapshot_data = self.stock_worker.get_snapshot(ticker)
-                
-                if snapshot_data:
-                    # Get ticker details for company name
-                    details = self.stock_worker.get_ticker_details(ticker)
-                    company_name = details.get('company_name', f"{ticker} Corporation") if details else f"{ticker} Corporation"
+        try:
+            # Get stock data from grouped aggregates using previous trading day
+            # (free tier doesn't allow current day data)
+            from datetime import datetime, timedelta
+            
+            # Try the last few days to find a trading day
+            for days_back in range(1, 8):  # Try up to a week back
+                test_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
+                ticker_data = self.stock_worker.get_stock_data_from_aggregates(tickers, test_date)
+                if ticker_data:  # Found data for this date
+                    break
+            else:
+                ticker_data = {}  # No data found in the last week
+
+            for ticker in tickers:
+                try:
+                    # Get ticker info for company name
+                    ticker_info = self.stock_worker.get_ticker_info(ticker)
+                    company_name = ticker_info.get('company_name', f"{ticker} Corporation") if ticker_info else f"{ticker} Corporation"
                     
-                    # Format market cap if available
-                    market_cap = "N/A"
-                    if details and details.get('market_cap'):
-                        mc = details['market_cap']
-                        if mc >= 1e12:
-                            market_cap = f"${mc/1e12:.1f}T"
-                        elif mc >= 1e9:
-                            market_cap = f"${mc/1e9:.1f}B"
-                        elif mc >= 1e6:
-                            market_cap = f"${mc/1e6:.1f}M"
-                        else:
-                            market_cap = f"${mc:,.0f}"
+                    # Get price data from aggregates
+                    price_data = ticker_data.get(ticker)
                     
-                    stock_data.append(StockData(
-                        ticker=ticker,
-                        company_name=company_name,
-                        price=snapshot_data.get('close', 0.0),
-                        change=snapshot_data.get('change', 0.0),
-                        change_percent=snapshot_data.get('change_percent', 0.0),
-                        volume=snapshot_data.get('volume', 0),
-                        market_cap=market_cap
-                    ))
-                else:
-                    # Fallback to previous close if snapshot fails
-                    prev_close_data = self.stock_worker.get_previous_close(ticker)
-                    if prev_close_data:
-                        details = self.stock_worker.get_ticker_details(ticker)
-                        company_name = details.get('company_name', f"{ticker} Corporation") if details else f"{ticker} Corporation"
+                    if price_data:
+                        # Calculate change from open to close
+                        open_price = price_data.get('open', 0.0)
+                        close_price = price_data.get('close', 0.0)
+                        change = close_price - open_price if open_price and close_price else 0.0
+                        change_percent = (change / open_price * 100) if open_price else 0.0
                         
                         stock_data.append(StockData(
                             ticker=ticker,
                             company_name=company_name,
-                            price=prev_close_data.get('close', 0.0),
-                            change=0.0,  # Can't calculate change without previous day
+                            price=close_price,
+                            change=round(change, 2),
+                            change_percent=round(change_percent, 2),
+                            volume=price_data.get('volume', 0),
+                            market_cap="N/A"  # Not available in free tier
+                        ))
+                    else:
+                        # No price data available, create placeholder
+                        stock_data.append(StockData(
+                            ticker=ticker,
+                            company_name=company_name,
+                            price=0.0,
+                            change=0.0,
                             change_percent=0.0,
-                            volume=prev_close_data.get('volume', 0),
+                            volume=0,
                             market_cap="N/A"
                         ))
-                
-            except Exception as e:
-                print(f"Failed to get data for {ticker}: {e}")
-                continue
+                        
+                except Exception as e:
+                    print(f"Failed to process data for {ticker}: {e}")
+                    continue
+                    
+        except Exception as e:
+            print(f"Failed to get stock data: {e}")
         
         return stock_data
 
     def get_major_indexes(self) -> List[StockData]:
         """Get data for major stock indexes using Polygon API"""
-        # Major market indexes with correct Polygon ticker symbols
-        # Note: Some indexes may use different symbols in Polygon API
+        # Major market indexes - try common ticker symbols
         major_tickers = [
-            'I:DJI',    # Dow Jones Industrial Average
-            'I:SPX',    # S&P 500
-            'I:COMP',   # NASDAQ Composite (IXIC alternative)
-            'SWTSX'     # Schwab Total Stock Market Index (if available)
+            'DJI',      # Dow Jones Industrial Average
+            'SPX',      # S&P 500  
+            'IXIC',     # NASDAQ Composite
+            'VTI'       # Vanguard Total Stock Market (alternative to SWTSX)
         ]
         return self.get_stock_data(major_tickers)
 
