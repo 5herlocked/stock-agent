@@ -65,7 +65,7 @@ def create_web_app() -> Robyn:
     async def firebase_service_worker(request: Request):
         return serve_file(os.path.join(src_path, "static", "js", "firebase-messaging-sw.js"))
 
-    @app.get("/static/js/<filename>")
+    @app.get("/static/js/:filename")
     async def serve_js_files(request: Request):
         filename = request.path_params.get("filename")
         if not filename or ".." in filename:
