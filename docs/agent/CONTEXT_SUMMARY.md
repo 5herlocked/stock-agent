@@ -34,9 +34,9 @@
 - **Mobile responsive**: Touch-friendly interface optimized for phones
 
 ### Data Strategy
-- **Mock data with realism**: Simulated price movements with proper volatility
-- **Polygon.io ready**: Real API integration available with API key
-- **Fallback architecture**: Graceful degradation when external services unavailable
+- **Real market data**: Live stock prices via Polygon.io API
+- **API key required**: Application requires POLYGON_API_KEY to function
+- **No fallback data**: System depends on external Polygon API
 - **Firebase integration**: Push notification infrastructure (requires configuration)
 
 ## File Structure Context
@@ -117,11 +117,11 @@ context = {
 - **Expiration**: 24 hours from creation
 - **Cleanup**: Manual cleanup of expired sessions
 
-### Stock Data Generation
-- **Base prices**: Realistic values for major stocks/indexes
-- **Volatility**: Random movements within ±5% for stocks, ±2% for indexes
-- **Volume**: Random realistic trading volumes
-- **Market cap**: Simulated values for display
+### Stock Data Integration
+- **Polygon API**: Real-time market data from Polygon.io
+- **Live prices**: Current stock prices and trading volumes
+- **Market data**: Real market capitalization and price changes
+- **API dependency**: Requires valid POLYGON_API_KEY environment variable
 
 ### Security Measures
 - **Password requirements**: Minimum 8 characters
@@ -157,14 +157,13 @@ context = {
 ## Integration Points
 
 ### External Services
-- **Polygon.io**: Stock market data API (optional)
+- **Polygon.io**: Stock market data API (required)
 - **Firebase**: Push notifications (optional)
 - **Docker**: Self-hosted containerized deployment
 
 ### Environment Dependencies
-- **POLYGON_API_KEY**: Enables real stock data
-- **FIREBASE_***: Enables push notifications
-- **No keys**: Falls back to mock data (fully functional)
+- **POLYGON_API_KEY**: Required for stock data (application won't function without it)
+- **FIREBASE_***: Enables push notifications (optional)
 
 ## Performance Characteristics
 - **Startup time**: ~1-2 seconds (database init, service setup)

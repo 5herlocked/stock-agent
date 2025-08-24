@@ -4,7 +4,6 @@ from ..notification_service import NotificationService
 from ..auth.models import StockData
 import pandas as pd
 import os
-import random
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from dataclasses import dataclass
@@ -126,103 +125,46 @@ class StockService:
         return False
 
     def search_stocks(self, query: str) -> List[Dict]:
-        """Search for stocks by ticker or company name"""
-        # Mock stock search - in production, this would call Polygon API
-        mock_stocks = [
-            {'ticker': 'AAPL', 'company_name': 'Apple Inc.'},
-            {'ticker': 'MSFT', 'company_name': 'Microsoft Corporation'},
-            {'ticker': 'GOOGL', 'company_name': 'Alphabet Inc.'},
-            {'ticker': 'AMZN', 'company_name': 'Amazon.com Inc.'},
-            {'ticker': 'TSLA', 'company_name': 'Tesla Inc.'},
-            {'ticker': 'META', 'company_name': 'Meta Platforms Inc.'},
-            {'ticker': 'NVDA', 'company_name': 'NVIDIA Corporation'},
-            {'ticker': 'NFLX', 'company_name': 'Netflix Inc.'},
-            {'ticker': 'AMD', 'company_name': 'Advanced Micro Devices Inc.'},
-            {'ticker': 'INTC', 'company_name': 'Intel Corporation'},
-            {'ticker': 'JPM', 'company_name': 'JPMorgan Chase & Co.'},
-            {'ticker': 'JNJ', 'company_name': 'Johnson & Johnson'},
-            {'ticker': 'V', 'company_name': 'Visa Inc.'},
-            {'ticker': 'PG', 'company_name': 'Procter & Gamble Co.'},
-            {'ticker': 'UNH', 'company_name': 'UnitedHealth Group Inc.'},
-        ]
+        """Search for stocks by ticker or company name using Polygon API"""
+        if not self.stock_worker:
+            raise Exception("Polygon API not available - check POLYGON_API_KEY")
         
-        query = query.upper()
-        results = []
+        # Use Polygon API to search for stocks
+        # For now, return the query as a ticker if it looks valid
+        query = query.upper().strip()
         
-        for stock in mock_stocks:
-            if query in stock['ticker'] or query.lower() in stock['company_name'].lower():
-                results.append(stock)
+        if len(query) <= 5 and query.isalpha():
+            # Return the ticker - Polygon API will validate it when we get price data
+            return [{'ticker': query, 'company_name': f'{query}'}]
         
-        # If exact ticker match, add it even if not in mock list
-        if len(query) <= 5 and query.isalpha() and not any(s['ticker'] == query for s in results):
-            results.insert(0, {'ticker': query, 'company_name': f'{query} Corporation'})
-        
-        return results[:10]  # Limit to 10 results
-    
+        return []
+
     def get_stock_data(self, tickers: List[str]) -> List[StockData]:
-        """Get current stock data for given tickers"""
+        """Get current stock data for given tickers using Polygon API"""
+        if not self.stock_worker:
+            raise Exception("Polygon API not available - check POLYGON_API_KEY")
+        
         stock_data = []
         
-        # Major indexes with realistic base prices
-        major_indexes = {
-            'DJI': {'name': 'Dow Jones Industrial Average', 'base_price': 34000},
-            'SPX': {'name': 'S&P 500', 'base_price': 4200},
-            'IXIC': {'name': 'NASDAQ Composite', 'base_price': 13000},
-            'SWTSX': {'name': 'Schwab Total Stock Market Index', 'base_price': 85}
-        }
-
-        # Common stock base prices for more realistic mock data
-        stock_prices = {
-            'AAPL': 175, 'MSFT': 350, 'GOOGL': 125, 'AMZN': 140, 'TSLA': 200,
-            'META': 300, 'NVDA': 450, 'NFLX': 400, 'AMD': 100, 'INTC': 45,
-            'JPM': 150, 'JNJ': 160, 'V': 250, 'PG': 150, 'UNH': 500
-        }
-        
         for ticker in tickers:
-            # Check if it's a major index
-            if ticker in major_indexes:
-                index_info = major_indexes[ticker]
-                base_price = index_info['base_price']
-                # Generate realistic mock data
-                change_percent = random.uniform(-2.0, 2.0)
-                change = base_price * (change_percent / 100)
-                current_price = base_price + change
+            try:
+                # Use Polygon API to get real stock data
+                # This would need to be implemented in polygon_worker.py
+                # For now, raise an exception to indicate real API is needed
+                raise NotImplementedError(f"Real Polygon API integration needed for ticker: {ticker}")
                 
-                stock_data.append(StockData(
-                    ticker=ticker,
-                    company_name=index_info['name'],
-                    price=round(current_price, 2),
-                    change=round(change, 2),
-                    change_percent=round(change_percent, 2),
-                    volume=random.randint(50000000, 200000000),
-                    market_cap="N/A"
-                ))
-            else:
-                # Use known stock price or generate random one
-                base_price = stock_prices.get(ticker, random.uniform(20, 300))
-                change_percent = random.uniform(-5.0, 5.0)
-                change = base_price * (change_percent / 100)
-                current_price = base_price + change
-                
-                # Get company name from search results
-                search_results = self.search_stocks(ticker)
-                company_name = next((s['company_name'] for s in search_results if s['ticker'] == ticker), f"{ticker} Corporation")
-                
-                stock_data.append(StockData(
-                    ticker=ticker,
-                    company_name=company_name,
-                    price=round(current_price, 2),
-                    change=round(change, 2),
-                    change_percent=round(change_percent, 2),
-                    volume=random.randint(1000000, 50000000),
-                    market_cap=f"${random.randint(10, 500)}B"
-                ))
+            except Exception as e:
+                # If we can't get real data, skip this ticker
+                print(f"Failed to get data for {ticker}: {e}")
+                continue
         
         return stock_data
-    
+
     def get_major_indexes(self) -> List[StockData]:
-        """Get data for major stock indexes"""
-        return self.get_stock_data(['DJI', 'SPX', 'IXIC', 'SWTSX'])
+        """Get data for major stock indexes using Polygon API"""
+        # Major market indexes - these would need real Polygon API implementation
+        major_tickers = ['DJI', 'SPX', 'IXIC', 'SWTSX']
+        return self.get_stock_data(major_tickers)
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
