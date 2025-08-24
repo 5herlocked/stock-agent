@@ -6,21 +6,9 @@ from typing import List, Dict, Optional
 
 class PolygonWorker:
     def __init__(self):
-        # Try to get API key from environment or .dev.env
         api_key = os.getenv('POLYGON_API_KEY')
-        
-        # If not in environment, try to load from .dev.env
         if not api_key:
-            try:
-                from dotenv import load_dotenv
-                load_dotenv('.dev.env')
-                api_key = os.getenv('POLYGON_API_KEY')
-            except ImportError:
-                pass  # dotenv not available
-        
-        if not api_key:
-            raise Exception("Polygon API not available - check POLYGON_API_KEY in environment or .dev.env")
-        
+            raise Exception("Polygon API not available - check POLYGON_API_KEY")
         self.client = RESTClient(api_key)
 
     def get_market_aggregates(self, date=datetime.date.today().isoformat()):
