@@ -1,0 +1,120 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Development and testing
+scripts/
+docs/
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Development tools
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Database files (should be mounted as volumes)
+*.db
+*.sqlite
+*.sqlite3
+users.db
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Node.js (if any frontend tooling)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE and editor files
+*.sublime-project
+*.sublime-workspace
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific excludes
+README.md
+LICENSE
+*.md
+
+# Development environment files that shouldn't override container config
+.dev.env
+
+# UV lock file (already copied explicitly in Dockerfile)
+# uv.lock - keeping this since we copy it explicitly
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Development database
+dev_users.db
