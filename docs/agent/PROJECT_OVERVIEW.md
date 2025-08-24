@@ -20,6 +20,7 @@ Stock Agent is a real-time stock market notification and tracking system built w
 - **Authentication**: bcrypt for password hashing, session-based auth
 - **Stock Data**: Polygon.io API integration with mock data fallback
 - **Notifications**: Firebase Admin SDK for push notifications
+- **Deployment**: Docker containerization for self-hosting
 
 ### Frontend
 - **Templates**: Jinja2 templating engine
@@ -31,8 +32,6 @@ Stock Agent is a real-time stock market notification and tracking system built w
 ```toml
 dependencies = [
     "numpy",           # Data processing
-    "boto3",           # AWS services (S3 for data files)
-    "botocore",        # AWS core functionality
     "pandas",          # Data analysis and manipulation
     "python-dotenv",   # Environment variable management
     "firebase-admin",  # Firebase push notifications

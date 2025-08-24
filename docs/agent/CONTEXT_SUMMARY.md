@@ -158,8 +158,8 @@ context = {
 
 ### External Services
 - **Polygon.io**: Stock market data API (optional)
-- **Firebase**: Push notifications and authentication (optional)
-- **AWS S3**: Historical data storage via boto3 (existing integration)
+- **Firebase**: Push notifications (optional)
+- **Docker**: Self-hosted containerized deployment
 
 ### Environment Dependencies
 - **POLYGON_API_KEY**: Enables real stock data

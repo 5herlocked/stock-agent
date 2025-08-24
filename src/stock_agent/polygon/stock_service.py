@@ -222,7 +222,7 @@ class StockService:
     
     def get_major_indexes(self) -> List[StockData]:
         """Get data for major stock indexes"""
-        return self.get_stock_data(['DJI', 'SPX', 'IXIC'])
+        return self.get_stock_data(['DJI', 'SPX', 'IXIC', 'SWTSX'])
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
