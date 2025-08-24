@@ -112,7 +112,7 @@ start_server() {
     kill_existing_server 8080
 
     # Start the development server
-    exec $PYTHON_CMD scripts/dev_server.py "$@"
+    exec $PYTHON_CMD -m robyn scripts/dev_server.py --dev"$@"
 }
 
 # Show help

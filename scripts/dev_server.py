@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 # Add src directory to Python path
-project_root = Path(__file__).parent
+project_root = Path(__file__).parent.parent
 src_path = project_root / "src"
 sys.path.insert(0, str(src_path))
 
@@ -73,7 +73,6 @@ def main():
         app.start(
             host=host,
             port=port,
-            dev=True  # This enables Robyn's development mode with hot reloading
         )
     except KeyboardInterrupt:
         print("\n👋 Development server stopped")
