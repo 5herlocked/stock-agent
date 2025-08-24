@@ -283,10 +283,11 @@ POLYGON_API_KEY=your-polygon-key
 ```
 
 ### Production Checklist
+- [ ] Build Docker container
 - [ ] Set up HTTPS/TLS
 - [ ] Configure proper logging
 - [ ] Set up monitoring/alerting
-- [ ] Database backups
+- [ ] Database backups (SQLite file)
 - [ ] Error tracking
 - [ ] Performance monitoring
 - [ ] Security headers
