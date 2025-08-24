@@ -167,9 +167,10 @@ class StockService:
         major_indexes = {
             'DJI': {'name': 'Dow Jones Industrial Average', 'base_price': 34000},
             'SPX': {'name': 'S&P 500', 'base_price': 4200},
-            'IXIC': {'name': 'NASDAQ Composite', 'base_price': 13000}
+            'IXIC': {'name': 'NASDAQ Composite', 'base_price': 13000},
+            'SWTSX': {'name': 'Schwab Total Stock Market Index', 'base_price': 85}
         }
-        
+
         # Common stock base prices for more realistic mock data
         stock_prices = {
             'AAPL': 175, 'MSFT': 350, 'GOOGL': 125, 'AMZN': 140, 'TSLA': 200,
