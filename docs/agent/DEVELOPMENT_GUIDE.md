@@ -110,18 +110,7 @@ curl -X GET "http://localhost:8080/api/search-stocks?q=AAPL" \
 ## Common Development Tasks
 
 ### Adding New Stock Data
-```python
-# In polygon/stock_service.py
-mock_stocks = [
-    {'ticker': 'NEWCO', 'company_name': 'New Company Inc.'},
-    # Add new entries here
-]
-
-stock_prices = {
-    'NEWCO': 150,  # Base price for realistic mock data
-    # Add new prices here
-}
-```
+Stock data comes directly from Polygon.io API. No manual addition needed - all publicly traded stocks are automatically available through the API when users search for them.
 
 ### Adding New API Endpoints
 ```python
@@ -272,14 +261,14 @@ SELECT * FROM user_favorites;
 
 ### Environment Variables
 ```env
-# Required for production
+# Required for stock data
+POLYGON_API_KEY=your-polygon-key
+
+# Optional for push notifications
 FIREBASE_CREDS_PATH=./firebase-credentials.json
 FIREBASE_API_KEY=your-api-key
 FIREBASE_PROJECT_ID=your-project-id
 FIREBASE_VAPID_PUBLIC_KEY=your-vapid-key
-
-# Optional for real stock data
-POLYGON_API_KEY=your-polygon-key
 ```
 
 ### Production Checklist
@@ -324,7 +313,7 @@ git push origin feature/new-feature
 - Test API endpoints with curl
 - Test mobile responsiveness
 - Test error conditions
-- Test with/without API keys
+- Ensure POLYGON_API_KEY is set for testing
 
 ### Documentation
 - Update relevant documentation files

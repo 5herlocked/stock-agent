@@ -18,7 +18,7 @@ Stock Agent is a real-time stock market notification and tracking system built w
 - **Framework**: Robyn (Python async web framework)
 - **Database**: SQLite with manual schema management
 - **Authentication**: bcrypt for password hashing, session-based auth
-- **Stock Data**: Polygon.io API integration with mock data fallback
+- **Stock Data**: Polygon.io API integration (requires API key)
 - **Notifications**: Firebase Admin SDK for push notifications
 - **Deployment**: Docker containerization for self-hosting
 
@@ -88,10 +88,10 @@ stock-agent/
 - **Unique constraints**: Prevent duplicate favorites per user
 
 ### Stock Data Strategy
-- **Polygon.io integration**: Real market data when API key available
-- **Mock data fallback**: Realistic simulation for development/testing
-- **Major indexes**: DJI, SPX, IXIC, SWTSX with realistic base prices
-- **Volatility simulation**: Random price movements within realistic ranges
+- **Polygon.io integration**: Real market data via API (requires POLYGON_API_KEY)
+- **Major indexes**: DJI, SPX, IXIC, SWTSX from Polygon API
+- **Real-time data**: Live market prices and trading volumes
+- **No fallback**: Application requires valid Polygon API key to function
 
 ### Frontend Architecture
 - **Server-side rendering**: Jinja2 templates for initial page load
@@ -130,10 +130,10 @@ POLYGON_API_KEY=your-polygon-key
 - ✅ **Authentication system**: Complete with admin CLI
 - ✅ **Stock favorites**: Full CRUD functionality
 - ✅ **Dashboard**: Real-time updates with major indexes
-- ✅ **Stock search**: Mock data with realistic companies
+- ✅ **Stock search**: Polygon API integration (requires API key)
 - ✅ **Mobile responsive**: Optimized for phone usage
 - ⚠️ **Push notifications**: Firebase integration present but needs configuration
-- ⚠️ **Real stock data**: Polygon integration present but needs API key
+- ❗ **Polygon API required**: Application requires POLYGON_API_KEY to function
 
 ## Future Enhancements
 - Real-time WebSocket connections for live price updates
