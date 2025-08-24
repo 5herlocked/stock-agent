@@ -1,7 +1,9 @@
 import datetime
+import time
 from polygon import RESTClient
 import os
 from typing import List, Dict, Optional
+from collections import deque
 
 
 class PolygonWorker:
@@ -10,12 +12,40 @@ class PolygonWorker:
         if not api_key:
             raise Exception("Polygon API not available - check POLYGON_API_KEY")
         self.client = RESTClient(api_key)
+        
+        # Rate limiting: 5 calls per minute for free tier
+        self.rate_limit = 5
+        self.rate_window = 60  # seconds
+        self.call_times = deque()
+    
+    def _wait_for_rate_limit(self):
+        """Ensure we don't exceed the rate limit of 5 calls per minute"""
+        now = time.time()
+        
+        # Remove calls older than the rate window
+        while self.call_times and now - self.call_times[0] >= self.rate_window:
+            self.call_times.popleft()
+        
+        # If we're at the rate limit, wait until we can make another call
+        if len(self.call_times) >= self.rate_limit:
+            sleep_time = self.rate_window - (now - self.call_times[0]) + 0.1  # Add small buffer
+            if sleep_time > 0:
+                print(f"Rate limit reached, waiting {sleep_time:.1f} seconds...")
+                time.sleep(sleep_time)
+                # Clean up old calls after waiting
+                now = time.time()
+                while self.call_times and now - self.call_times[0] >= self.rate_window:
+                    self.call_times.popleft()
+        
+        # Record this call
+        self.call_times.append(now)
 
     def get_market_aggregates(self, date=datetime.date.today().isoformat()):
         """
         Get grouped daily aggregates for all tickers on a given date
         Date has to be in ISO format - YYYY-MM-DD
         """
+        self._wait_for_rate_limit()
         try:
             grouped_aggs = self.client.get_grouped_daily_aggs(
                 date,
@@ -37,6 +67,7 @@ class PolygonWorker:
         Returns:
             List of dictionaries containing ticker and company name
         """
+        self._wait_for_rate_limit()
         try:
             # Use the reference tickers API with search parameter
             tickers = self.client.list_tickers(
@@ -71,6 +102,7 @@ class PolygonWorker:
         Returns:
             Dictionary with ticker info or None if not found
         """
+        self._wait_for_rate_limit()
         try:
             # Use reference tickers API to get ticker info
             tickers = self.client.list_tickers(
