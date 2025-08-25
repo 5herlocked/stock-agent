@@ -210,14 +210,14 @@ class StockService:
         if not self.stock_worker:
             raise Exception("Polygon API not available - check POLYGON_API_KEY")
         
-        # Major market indexes - try common ticker symbols
+        # Major market indexes - try multiple formats to find working symbols
         major_tickers = [
-            'DJI',      # Dow Jones Industrial Average
-            'SPX',      # S&P 500  
-            'IXIC',     # NASDAQ Composite
-            'VTI'       # Vanguard Total Stock Market (alternative to SWTSX)
+            'I:DJI',    # Dow Jones Industrial Average (Polygon format)
+            'I:SPX',    # S&P 500 (Polygon format)
+            'I:COMP',   # NASDAQ Composite (Polygon format)
+            'SPY'       # SPDR S&P 500 ETF (widely traded, should have data)
         ]
-        
+
         stock_data = []
         
         try:
@@ -241,10 +241,10 @@ class StockService:
                     
                     # Use simple display names for major indexes (no API call needed)
                     index_names = {
-                        'DJI': 'Dow Jones Industrial Average',
-                        'SPX': 'S&P 500',
-                        'IXIC': 'NASDAQ Composite',
-                        'VTI': 'Vanguard Total Stock Market ETF'
+                        'I:DJI': 'Dow Jones Industrial Average',
+                        'I:SPX': 'S&P 500',
+                        'I:COMP': 'NASDAQ Composite',
+                        'SPY': 'SPDR S&P 500 ETF'
                     }
                     company_name = index_names.get(ticker, f"{ticker} Index")
                     
