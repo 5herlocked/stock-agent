@@ -206,7 +206,10 @@ class StockService:
         return stock_data
 
     def get_major_indexes(self) -> List[StockData]:
-        """Get data for major stock indexes using Polygon API"""
+        """Get data for major stock indexes using Polygon API grouped aggregates"""
+        if not self.stock_worker:
+            raise Exception("Polygon API not available - check POLYGON_API_KEY")
+        
         # Major market indexes - try common ticker symbols
         major_tickers = [
             'DJI',      # Dow Jones Industrial Average
@@ -214,7 +217,73 @@ class StockService:
             'IXIC',     # NASDAQ Composite
             'VTI'       # Vanguard Total Stock Market (alternative to SWTSX)
         ]
-        return self.get_stock_data(major_tickers)
+        
+        stock_data = []
+        
+        try:
+            # Get stock data from grouped aggregates using previous trading day
+            from datetime import datetime, timedelta
+            
+            # Try the last few days to find a trading day
+            for days_back in range(1, 8):  # Try up to a week back
+                test_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
+                ticker_data = self.stock_worker.get_stock_data_from_aggregates(major_tickers, test_date)
+                if ticker_data:  # Found data for this date
+                    break
+            else:
+                ticker_data = {}  # No data found in the last week
+
+            # Process each major index ticker
+            for ticker in major_tickers:
+                try:
+                    # Get price data from aggregates
+                    price_data = ticker_data.get(ticker)
+                    
+                    # Use simple display names for major indexes (no API call needed)
+                    index_names = {
+                        'DJI': 'Dow Jones Industrial Average',
+                        'SPX': 'S&P 500',
+                        'IXIC': 'NASDAQ Composite',
+                        'VTI': 'Vanguard Total Stock Market ETF'
+                    }
+                    company_name = index_names.get(ticker, f"{ticker} Index")
+                    
+                    if price_data:
+                        # Calculate change from open to close
+                        open_price = price_data.get('open', 0.0)
+                        close_price = price_data.get('close', 0.0)
+                        change = close_price - open_price if open_price and close_price else 0.0
+                        change_percent = (change / open_price * 100) if open_price else 0.0
+                        
+                        stock_data.append(StockData(
+                            ticker=ticker,
+                            company_name=company_name,
+                            price=close_price,
+                            change=round(change, 2),
+                            change_percent=round(change_percent, 2),
+                            volume=price_data.get('volume', 0),
+                            market_cap="N/A"  # Not applicable for indexes
+                        ))
+                    else:
+                        # No price data available, create placeholder
+                        stock_data.append(StockData(
+                            ticker=ticker,
+                            company_name=company_name,
+                            price=0.0,
+                            change=0.0,
+                            change_percent=0.0,
+                            volume=0,
+                            market_cap="N/A"
+                        ))
+                        
+                except Exception as e:
+                    print(f"Failed to process major index {ticker}: {e}")
+                    continue
+                    
+        except Exception as e:
+            print(f"Failed to get major indexes data: {e}")
+        
+        return stock_data
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
