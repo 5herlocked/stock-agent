@@ -210,12 +210,12 @@ class StockService:
         if not self.stock_worker:
             raise Exception("Polygon API not available - check POLYGON_API_KEY")
         
-        # Major market indexes - try multiple formats to find working symbols
+        # Major market ETFs that track the major indices (guaranteed to have data)
         major_tickers = [
-            'I:DJI',    # Dow Jones Industrial Average (Polygon format)
-            'I:SPX',    # S&P 500 (Polygon format)
-            'I:COMP',   # NASDAQ Composite (Polygon format)
-            'SPY'       # SPDR S&P 500 ETF (widely traded, should have data)
+            'DIA',      # SPDR Dow Jones Industrial Average ETF
+            'SPY',      # SPDR S&P 500 ETF
+            'QQQ',      # Invesco QQQ NASDAQ-100 ETF
+            'VTI'       # Vanguard Total Stock Market ETF
         ]
 
         stock_data = []
@@ -239,12 +239,12 @@ class StockService:
                     # Get price data from aggregates
                     price_data = ticker_data.get(ticker)
                     
-                    # Use simple display names for major indexes (no API call needed)
+                    # Use simple display names for major market ETFs (no API call needed)
                     index_names = {
-                        'I:DJI': 'Dow Jones Industrial Average',
-                        'I:SPX': 'S&P 500',
-                        'I:COMP': 'NASDAQ Composite',
-                        'SPY': 'SPDR S&P 500 ETF'
+                        'DIA': 'Dow Jones Industrial Average ETF',
+                        'SPY': 'S&P 500 ETF',
+                        'QQQ': 'NASDAQ-100 ETF',
+                        'VTI': 'Total Stock Market ETF'
                     }
                     company_name = index_names.get(ticker, f"{ticker} Index")
                     
