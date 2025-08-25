@@ -150,13 +150,13 @@ class StockService:
             from datetime import datetime, timedelta
             
             # Try the last few days to find a trading day
-            for days_back in range(1, 8):  # Try up to a week back
+            for days_back in range(1, 6):  # Try up to 5 days back
                 test_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
                 ticker_data = self.stock_worker.get_stock_data_from_aggregates(tickers, test_date)
                 if ticker_data:  # Found data for this date
                     break
             else:
-                ticker_data = {}  # No data found in the last week
+                ticker_data = {}  # No data found in the last 5 days
 
             # Process each ticker (caching in PolygonWorker handles efficiency)
             for ticker in tickers:
@@ -225,13 +225,13 @@ class StockService:
             from datetime import datetime, timedelta
             
             # Try the last few days to find a trading day
-            for days_back in range(1, 8):  # Try up to a week back
+            for days_back in range(1, 6):  # Try up to 5 days back
                 test_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
                 ticker_data = self.stock_worker.get_stock_data_from_aggregates(major_tickers, test_date)
                 if ticker_data:  # Found data for this date
                     break
             else:
-                ticker_data = {}  # No data found in the last week
+                ticker_data = {}  # No data found in the last 5 days
 
             # Process each major index ticker
             for ticker in major_tickers:
