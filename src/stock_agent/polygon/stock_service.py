@@ -158,26 +158,13 @@ class StockService:
             else:
                 ticker_data = {}  # No data found in the last week
 
-            # Get ticker info for all tickers in one batch to minimize API calls
-            ticker_info_map = {}
+            # Process each ticker (caching in PolygonWorker handles efficiency)
             for ticker in tickers:
                 try:
-                    # Only make API call if we don't have price data (to avoid unnecessary calls)
-                    if ticker in ticker_data or len(tickers) <= 3:  # Always get info for small batches
-                        ticker_info = self.stock_worker.get_ticker_info(ticker)
-                        if ticker_info:
-                            ticker_info_map[ticker] = ticker_info
-                except Exception as e:
-                    print(f"Failed to get ticker info for {ticker}: {e}")
-                    continue
-
-            # Process each ticker
-            for ticker in tickers:
-                try:
-                    # Get company name from ticker info or use default
-                    ticker_info = ticker_info_map.get(ticker)
+                    # Get ticker info (will use cache if available)
+                    ticker_info = self.stock_worker.get_ticker_info(ticker)
                     company_name = ticker_info.get('company_name', f"{ticker} Corporation") if ticker_info else f"{ticker} Corporation"
-                    
+
                     # Get price data from aggregates
                     price_data = ticker_data.get(ticker)
                     
