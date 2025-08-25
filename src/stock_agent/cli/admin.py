@@ -11,6 +11,7 @@ import sys
 from typing import Optional
 
 from ..auth import AuthService
+from ..notification_service import NotificationService, StockAlert
 
 
 def create_user(auth_service: AuthService, username: str, email: str, password: Optional[str] = None) -> bool:
@@ -157,6 +158,37 @@ def reset_password(auth_service: AuthService, username: str) -> bool:
         return False
 
 
+def test_notification(topic: str = "stock_alerts", ticker: str = "AAPL") -> bool:
+    """Send a test push notification to all users"""
+    try:
+        # Initialize notification service
+        notification_service = NotificationService()
+        
+        # Create a test stock alert
+        test_alert = StockAlert(
+            ticker=ticker,
+            percent_change=5.25,
+            current_price=175.50,
+            alert_type="gainer"
+        )
+        
+        print(f"📱 Sending test notification for {ticker} to topic '{topic}'...")
+        success = notification_service.send_notification_to_topic(topic, test_alert)
+        
+        if success:
+            print(f"✅ Test notification sent successfully!")
+            print(f"   Ticker: {ticker}")
+            print(f"   Message: {ticker} has moved 5.25% up to $175.50")
+            return True
+        else:
+            print(f"❌ Failed to send test notification")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error sending test notification: {e}")
+        return False
+
+
 def main():
     """Main CLI entry point"""
     parser = argparse.ArgumentParser(
@@ -169,6 +201,8 @@ Examples:
   %(prog)s deactivate-user john
   %(prog)s activate-user john
   %(prog)s reset-password john
+  %(prog)s test-notification
+  %(prog)s test-notification --topic custom_topic --ticker TSLA
         """
     )
 
@@ -200,9 +234,14 @@ Examples:
     # Reset password command
     reset_parser = subparsers.add_parser('reset-password', help='Reset a user\'s password')
     reset_parser.add_argument('username', help='Username to reset password for')
+    
+    # Test notification command
+    test_notif_parser = subparsers.add_parser('test-notification', help='Send a test push notification')
+    test_notif_parser.add_argument('--topic', default='stock_alerts', help='Firebase topic to send to (default: stock_alerts)')
+    test_notif_parser.add_argument('--ticker', default='AAPL', help='Stock ticker for test notification (default: AAPL)')
 
     args = parser.parse_args()
-    
+
     if not args.command:
         parser.print_help()
         sys.exit(1)
@@ -232,6 +271,10 @@ Examples:
         
     elif args.command == 'reset-password':
         success = reset_password(auth_service, args.username)
+        sys.exit(0 if success else 1)
+        
+    elif args.command == 'test-notification':
+        success = test_notification(args.topic, args.ticker)
         sys.exit(0 if success else 1)
 
 
