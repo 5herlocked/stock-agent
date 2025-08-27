@@ -4,7 +4,6 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from .web import create_web_app
-from .polygon import StockService
 
 def main():
     """Run the production Stock Agent server"""

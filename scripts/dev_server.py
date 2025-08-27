@@ -14,7 +14,6 @@ sys.path.insert(0, str(src_path))
 
 from dotenv import load_dotenv
 from stock_agent.web import create_web_app
-from stock_agent.polygon import StockService
 
 
 def main():
