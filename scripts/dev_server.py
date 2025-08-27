@@ -28,20 +28,6 @@ def main():
     else:
         print(f"⚠️  Warning: {env_path} not found, using system environment")
 
-    # Optional: Generate market summary (skip for faster dev startup)
-    generate_summary = os.getenv('DEV_GENERATE_SUMMARY', 'false').lower() == 'true'
-
-    if generate_summary:
-        print("📊 Generating market summary...")
-        try:
-            stock_service = StockService()
-            stock_service.generate_market_summary()
-            print("✅ Market summary generated")
-        except Exception as e:
-            print(f"⚠️  Warning: Failed to generate market summary: {e}")
-    else:
-        print("⏩ Skipping market summary generation (set DEV_GENERATE_SUMMARY=true to enable)")
-
     # Create web application
     print("🚀 Creating web application...")
     app = create_web_app()
