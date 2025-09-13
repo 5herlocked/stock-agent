@@ -83,4 +83,4 @@ LABEL org.opencontainers.image.title="Stock Agent" \
     org.opencontainers.image.description="Stock monitoring and notification service" \
     org.opencontainers.image.version="0.1.0" \
     org.opencontainers.image.authors="Stock Agent Team" \
-    org.opencontainers.image.source="https://github.com/your-repo/stock-agent"
+    org.opencontainers.image.source="https://github.com/5herlocked/stock-agent"

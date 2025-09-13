@@ -26,17 +26,19 @@ class StockMetrics:
     @staticmethod
     def from_polygon(polygon_metrics: GroupedDailyAgg):
         """Update metrics from Polygon API response"""
+        # Handle potential NaN or None values with fallbacks
         return StockMetrics(
-            close=polygon_metrics.close if polygon_metrics.close is not None else 0.0,
-            high=polygon_metrics.high if polygon_metrics.high is not None else 0.0,
-            low=polygon_metrics.low if polygon_metrics.low is not None else 0.0,
-            open=polygon_metrics.open if polygon_metrics.open is not None else 0.0,
-            volume=polygon_metrics.volume if polygon_metrics.volume is not None else 0.0,
-            vwap=polygon_metrics.vwap if polygon_metrics.vwap else 0.0,
-            transactions=polygon_metrics.transactions if polygon_metrics.transactions else 0,
-            timestamp=polygon_metrics.timestamp if polygon_metrics.timestamp is not None else 0,
-            ticker=polygon_metrics.ticker if polygon_metrics.ticker else ""
+            ticker=polygon_metrics.ticker if polygon_metrics.ticker else "",
+            close=float(polygon_metrics.close) if polygon_metrics.close and pd.notna(polygon_metrics.close) else 0.0,
+            high=float(polygon_metrics.high) if polygon_metrics.high and pd.notna(polygon_metrics.high) else 0.0,
+            low=float(polygon_metrics.low) if polygon_metrics.low and pd.notna(polygon_metrics.low) else 0.0,
+            open=float(polygon_metrics.open) if polygon_metrics.open and pd.notna(polygon_metrics.open) else 0.0,
+            volume=float(polygon_metrics.volume) if polygon_metrics.volume and pd.notna(polygon_metrics.volume) else 0.0,
+            vwap=float(polygon_metrics.vwap) if polygon_metrics.vwap and pd.notna(polygon_metrics.vwap) else 0.0,
+            transactions=int(polygon_metrics.transactions) if polygon_metrics.transactions and pd.notna(polygon_metrics.transactions) else 0,
+            timestamp=int(polygon_metrics.timestamp) if polygon_metrics.timestamp and pd.notna(polygon_metrics.timestamp) else 0
         )
+
 
 class StockService:
     """Service for retrieving and analyzing stock market data.
@@ -66,14 +68,27 @@ class StockService:
         except Exception:
             # Fallback if no API key or polygon service unavailable
             self.stock_worker = None
-        
+
         try:
             self.notification_service = NotificationService()
         except Exception:
             # Fallback if Firebase not configured
             self.notification_service = None
-        
+
         self.current_summary = None
+
+    def _get_trend(self, df: pd.DataFrame, ticker: str) -> float:
+        """Given DF and ticker, calculate the percentage change over all dates in the row"""
+        # Get the row for the ticker
+        row = df.loc[ticker]
+
+        # Get the earliest and latest StockMetrics objects
+        earliest_metrics = row.iloc[-1]  # Last column is earliest date
+        latest_metrics = row.iloc[0]     # First column is latest date
+
+        # Calculate total percentage change
+        percent_change = ((latest_metrics.close - earliest_metrics.close) / earliest_metrics.close) * 100
+        return percent_change
 
     def generate_market_summary(self):
         """
@@ -100,7 +115,17 @@ class StockService:
         for date in dates:
             aggs = self.stock_worker.get_market_aggregates(date)
             for agg in aggs:
+                # Convert polygon data to StockMetrics
                 metrics = StockMetrics.from_polygon(agg)
+
+                # Validate critical fields
+                if not metrics.ticker:
+                    continue
+
+                # Check if the metrics has valid trading data
+                if (pd.isna(metrics.close) or metrics.close == 0 or
+                    pd.isna(metrics.volume) or metrics.volume == 0):
+                    continue
 
                 if metrics.ticker not in data_by_ticker:
                     data_by_ticker[metrics.ticker] = {}
@@ -108,11 +133,33 @@ class StockService:
                 # Store StockMetrics object
                 data_by_ticker[metrics.ticker][date] = metrics
 
+        # Filter out tickers that don't have sufficient data
+        complete_tickers = {}
+        for ticker, ticker_data in data_by_ticker.items():
+            # Check if we have data for all dates
+            if len(ticker_data) != len(dates):
+                continue
+
+            # Additional validation of the data
+            valid_data = True
+            for date in dates:
+                metrics = ticker_data.get(date)
+                if not metrics or pd.isna(metrics.close) or metrics.close == 0:
+                    valid_data = False
+                    break
+
+            if valid_data:
+                complete_tickers[ticker] = ticker_data
+
         # Convert nested dict to DataFrame
-        df = pd.DataFrame.from_dict(data_by_ticker, orient='index')
+        df = pd.DataFrame.from_dict(complete_tickers, orient='index')
 
         # Sort columns by date (most recent first)
         df = df[sorted(dates, reverse=True)]
+
+        curr_trend_col = [self._get_trend(df, ticker) for ticker in df.index.values]
+
+        df['Trend'] = curr_trend_col
 
         self.current_summary = df
 
@@ -128,7 +175,7 @@ class StockService:
         """Search for stocks by ticker or company name using Polygon API"""
         if not self.stock_worker:
             raise Exception("Polygon API not available - check POLYGON_API_KEY")
-        
+
         # Use Polygon API to search for stocks
         try:
             results = self.stock_worker.search_tickers(query.strip(), limit=10)
@@ -141,14 +188,14 @@ class StockService:
         """Get stock data for given tickers using Polygon API grouped aggregates"""
         if not self.stock_worker:
             raise Exception("Polygon API not available - check POLYGON_API_KEY")
-        
+
         stock_data = []
-        
+
         try:
             # Get stock data from grouped aggregates using previous trading day
             # (free tier doesn't allow current day data)
             from datetime import datetime, timedelta
-            
+
             # Try the last few days to find a trading day
             for days_back in range(1, 6):  # Try up to 5 days back
                 test_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
@@ -167,14 +214,14 @@ class StockService:
 
                     # Get price data from aggregates
                     price_data = ticker_data.get(ticker)
-                    
+
                     if price_data:
                         # Calculate change from open to close
                         open_price = price_data.get('open', 0.0)
                         close_price = price_data.get('close', 0.0)
                         change = close_price - open_price if open_price and close_price else 0.0
                         change_percent = (change / open_price * 100) if open_price else 0.0
-                        
+
                         stock_data.append(StockData(
                             ticker=ticker,
                             company_name=company_name,
@@ -195,21 +242,21 @@ class StockService:
                             volume=0,
                             market_cap="N/A"
                         ))
-                        
+
                 except Exception as e:
                     print(f"Failed to process data for {ticker}: {e}")
                     continue
 
         except Exception as e:
             print(f"Failed to get stock data: {e}")
-        
+
         return stock_data
 
     def get_major_indexes(self) -> List[StockData]:
         """Get data for major stock indexes using Polygon API grouped aggregates"""
         if not self.stock_worker:
             raise Exception("Polygon API not available - check POLYGON_API_KEY")
-        
+
         # Major market ETFs that track the major indices (guaranteed to have data)
         major_tickers = [
             'DIA',      # SPDR Dow Jones Industrial Average ETF
@@ -219,11 +266,11 @@ class StockService:
         ]
 
         stock_data = []
-        
+
         try:
             # Get stock data from grouped aggregates using previous trading day
             from datetime import datetime, timedelta
-            
+
             # Try the last few days to find a trading day
             for days_back in range(1, 6):  # Try up to 5 days back
                 test_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
@@ -238,7 +285,7 @@ class StockService:
                 try:
                     # Get price data from aggregates
                     price_data = ticker_data.get(ticker)
-                    
+
                     # Use simple display names for major market ETFs (no API call needed)
                     index_names = {
                         'DIA': 'Dow Jones Industrial Average ETF',
@@ -247,14 +294,14 @@ class StockService:
                         'VTI': 'Total Stock Market ETF'
                     }
                     company_name = index_names.get(ticker, f"{ticker} Index")
-                    
+
                     if price_data:
                         # Calculate change from open to close
                         open_price = price_data.get('open', 0.0)
                         close_price = price_data.get('close', 0.0)
                         change = close_price - open_price if open_price and close_price else 0.0
                         change_percent = (change / open_price * 100) if open_price else 0.0
-                        
+
                         stock_data.append(StockData(
                             ticker=ticker,
                             company_name=company_name,
@@ -275,15 +322,16 @@ class StockService:
                             volume=0,
                             market_cap="N/A"
                         ))
-                        
+
                 except Exception as e:
                     print(f"Failed to process major index {ticker}: {e}")
                     continue
-                    
+
         except Exception as e:
             print(f"Failed to get major indexes data: {e}")
-        
+
         return stock_data
+
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
