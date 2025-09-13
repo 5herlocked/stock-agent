@@ -6,6 +6,7 @@ from robyn import Robyn, Request, Response, serve_file
 from robyn.templating import JinjaTemplate
 
 from ..auth import AuthService, User
+from ..auth.firebase_auth_service import FirebaseAuthService
 from ..polygon.stock_service import StockService
 
 def create_web_app() -> Robyn:
@@ -17,6 +18,7 @@ def create_web_app() -> Robyn:
 
     # Initialize services
     auth_service = AuthService()
+    firebase_auth_service = FirebaseAuthService(auth_service)
     stock_service = StockService()
 
     def get_current_user(request: Request) -> Optional[User]:
@@ -38,8 +40,16 @@ def create_web_app() -> Robyn:
             return auth_service.get_user_from_session(session_token)
         return None
 
+    def get_user_from_firebase_token(request: Request) -> Optional[User]:
+        """Get user from Firebase ID token in Authorization header"""
+        auth_header = request.headers.get('authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            id_token = auth_header[7:]  # Remove 'Bearer ' prefix
+            return firebase_auth_service.get_user_from_firebase_token(id_token)
+        return None
+
     def get_user_from_bearer_token(request: Request) -> Optional[User]:
-        """Get user from Bearer token in Authorization header"""
+        """Get user from Bearer token in Authorization header (legacy support)"""
         auth_header = request.headers.get('authorization')
         if auth_header and auth_header.startswith('Bearer '):
             session_token = auth_header[7:]  # Remove 'Bearer ' prefix
@@ -63,7 +73,12 @@ def create_web_app() -> Robyn:
     # Static files
     @app.get("/firebase-messaging-sw.js")
     async def firebase_service_worker(request: Request):
-        return serve_file(os.path.join(src_path, "static", "js", "firebase-messaging-sw.js"))
+        # Serve the new Firebase auth service worker
+        return serve_file(os.path.join(src_path, "static", "js", "firebase-auth-sw.js"))
+    
+    @app.get("/firebase-auth-sw.js")
+    async def firebase_auth_service_worker(request: Request):
+        return serve_file(os.path.join(src_path, "static", "js", "firebase-auth-sw.js"))
 
     @app.get("/static/js/:filename")
     async def serve_js_files(request: Request):
@@ -207,30 +222,42 @@ def create_web_app() -> Robyn:
         template = jinja_template.render_template("report.html", **context)
         return template
 
-    # API routes - require session token authentication
+    # API routes - require Firebase authentication
     @app.get('/api/vapid-public-key')
     def get_vapid_public_key(request: Request):
-        # Check for user session (cookie or Bearer token)
-        user = get_current_user(request) or get_user_from_bearer_token(request)
+        # Check for Firebase ID token first, fallback to legacy session token
+        user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
         if not user:
             return Response(
                 status_code=401,
-                description="Unauthorized - Valid session token required",
+                description="Unauthorized - Valid Firebase ID token required",
                 headers={"Content-Type": "application/json"}
             )
         return {'vapidPublicKey': os.getenv('FIREBASE_VAPID_PUBLIC_KEY')}
 
     @app.get('/api/firebase-config')
     async def get_firebase_config(request: Request):
-        # Check for user session (cookie or Bearer token)
-        user = get_current_user(request) or get_user_from_bearer_token(request)
+        # Check for Firebase ID token first, fallback to legacy session token
+        user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
         if not user:
             return Response(
                 status_code=401,
-                description="Unauthorized - Valid session token required",
+                description="Unauthorized - Valid Firebase ID token required",
                 headers={"Content-Type": "application/json"}
             )
 
+        config = {
+            "apiKey": os.environ.get("FIREBASE_API_KEY"),
+            "authDomain": os.environ.get("FIREBASE_AUTH_DOMAIN"),
+            "projectId": os.environ.get("FIREBASE_PROJECT_ID"),
+            "messagingSenderId": os.environ.get("FIREBASE_MESSAGING_SENDER_ID"),
+            "appId": os.environ.get("FIREBASE_APP_ID")
+        }
+        return config
+
+    @app.get('/api/firebase-config-public')
+    async def get_firebase_config_public(request: Request):
+        """Public endpoint for Firebase config - no authentication required"""
         config = {
             "apiKey": os.environ.get("FIREBASE_API_KEY"),
             "authDomain": os.environ.get("FIREBASE_AUTH_DOMAIN"),
@@ -261,7 +288,7 @@ def create_web_app() -> Robyn:
 
     @app.get('/api/search-stocks')
     async def search_stocks(request: Request):
-        user = get_current_user(request) or get_user_from_bearer_token(request)
+        user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
         if not user:
             return {'error': 'Unauthorized'}, 401
 
@@ -277,7 +304,7 @@ def create_web_app() -> Robyn:
 
     @app.get('/api/favorites')
     async def get_favorites(request: Request):
-        user = get_current_user(request) or get_user_from_bearer_token(request)
+        user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
         if not user:
             return {'error': 'Unauthorized'}, 401
 
@@ -296,7 +323,7 @@ def create_web_app() -> Robyn:
 
     @app.post('/api/favorites')
     async def add_favorite(request: Request):
-        user = get_current_user(request) or get_user_from_bearer_token(request)
+        user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
         if not user:
             return {'error': 'Unauthorized'}, 401
 
@@ -325,7 +352,7 @@ def create_web_app() -> Robyn:
 
     @app.delete('/api/favorites')
     async def remove_favorite(request: Request):
-        user = get_current_user(request) or get_user_from_bearer_token(request)
+        user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
         if not user:
             return {'error': 'Unauthorized'}, 401
 
@@ -353,7 +380,7 @@ def create_web_app() -> Robyn:
 
     @app.get('/api/dashboard-favorites')
     async def get_dashboard_favorites(request: Request):
-        user = get_current_user(request) or get_user_from_bearer_token(request)
+        user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
         if not user:
             return {'error': 'Unauthorized'}, 401
 
@@ -385,7 +412,7 @@ def create_web_app() -> Robyn:
 
     @app.get('/api/major-indexes')
     async def get_major_indexes(request: Request):
-        user = get_current_user(request) or get_user_from_bearer_token(request)
+        user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
         if not user:
             return {'error': 'Unauthorized'}, 401
 

@@ -39,14 +39,9 @@
         <div class="container">
             <div class="header">
                 <h1>Stock Agent Notifications</h1>
-                {% if user %}
                 <div class="user-info">
-                    Welcome, {{ user.username }}! 
-                    <form method="post" action="/logout" style="display: inline;">
-                        <button type="submit" class="logout-btn">Logout</button>
-                    </form>
+                    <!-- Firebase Auth will populate this -->
                 </div>
-                {% endif %}
             </div>
             <div id="notification-status">
                 Checking notification permission...
@@ -79,6 +74,9 @@
             </div>
         </div>
 
+        <!-- Firebase Auth Integration -->
+        <script type="module" src="/static/js/firebase-auth.js"></script>
+        
         <script type="module">
             import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
             import {
@@ -391,6 +389,16 @@
                         "enable-notifications",
                     ).style.display = "block";
                 }
+            });
+
+            // Authentication check - redirect to login if not authenticated
+            document.addEventListener('DOMContentLoaded', function() {
+                // Wait for Firebase Auth to initialize
+                setTimeout(() => {
+                    if (window.firebaseAuth && !window.firebaseAuth.isSignedIn()) {
+                        window.location.href = '/login';
+                    }
+                }, 2000);
             });
         </script>
     </body>

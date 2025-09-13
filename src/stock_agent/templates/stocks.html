@@ -181,14 +181,9 @@
                     <a href="/stocks" class="nav-link">Search Stocks</a>
                 </nav>
             </div>
-            {% if user %}
             <div class="user-info">
-                Welcome, {{ user.username }}! 
-                <form method="post" action="/logout" style="display: inline;">
-                    <button type="submit" class="logout-btn">Logout</button>
-                </form>
+                <!-- Firebase Auth will populate this -->
             </div>
-            {% endif %}
         </div>
 
         <div class="search-section">
@@ -335,6 +330,19 @@
             if (e.key === 'Enter') {
                 searchStocks();
             }
+        });
+    </script>
+
+    <!-- Firebase Auth Integration -->
+    <script type="module" src="/static/js/firebase-auth.js"></script>
+    <script>
+        // Authentication check
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                if (window.firebaseAuth && !window.firebaseAuth.isSignedIn()) {
+                    window.location.href = '/login';
+                }
+            }, 2000);
         });
     </script>
 </body>
