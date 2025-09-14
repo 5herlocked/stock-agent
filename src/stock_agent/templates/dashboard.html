@@ -181,12 +181,15 @@
                         <a href="/stocks" class="nav-link">Search Stocks</a>
                     </nav>
                 </div>
-                <div class="user-info">
-                    <!-- Firebase Auth will populate this -->
-                    <button onclick="refreshData()" class="refresh-btn">
-                        Refresh
-                    </button>
+                <div class="user-info" 
+                     hx-get="/api/auth/user-info" 
+                     hx-trigger="load delay:1s"
+                     hx-swap="outerHTML">
+                    <!-- User info will be loaded here -->
                 </div>
+                <button onclick="refreshData()" class="refresh-btn">
+                    Refresh
+                </button>
             </div>
 
             <div class="dashboard-grid">
@@ -327,17 +330,7 @@
             });
         </script>
 
-        <!-- Firebase Auth Integration -->
-        <script type="module" src="/static/js/firebase-auth.js"></script>
-        <script>
-            // Authentication check
-            document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(() => {
-                    if (window.firebaseAuth && !window.firebaseAuth.isSignedIn()) {
-                        window.location.href = '/login';
-                    }
-                }, 2000);
-            });
-        </script>
+        <!-- HTMX Firebase Auth Integration -->
+        <script type="module" src="/static/js/htmx-firebase-auth.js"></script>
     </body>
 </html>

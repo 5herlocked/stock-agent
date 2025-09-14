@@ -122,8 +122,8 @@
                     />
                 </div>
 
-                <button type="submit" id="loginBtn">Login with Firebase</button>
-                <button type="button" id="createAccountBtn" style="background-color: #28a745; margin-top: 10px;">Create Account</button>
+                <button type="button" onclick="handleLogin()" id="loginBtn">Login with Firebase</button>
+                <button type="button" onclick="handleCreateAccount()" id="createAccountBtn" style="background-color: #28a745; margin-top: 10px;">Create Account</button>
             </form>
 
             <div class="auth-content" style="display: none; text-align: center;">
@@ -132,115 +132,99 @@
                 <a href="/" style="color: #007bff; text-decoration: none;">Go to Dashboard</a>
             </div>
 
-            <script type="module" src="/static/js/firebase-auth.js"></script>
+            <script type="module" src="/static/js/htmx-firebase-auth.js"></script>
             <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    const loginForm = document.getElementById('loginForm');
-                    const loginBtn = document.getElementById('loginBtn');
-                    const createAccountBtn = document.getElementById('createAccountBtn');
-                    const errorDiv = document.querySelector('.error');
-
-                    function showError(message) {
-                        const errorDiv = document.getElementById('error-message');
-                        const infoDiv = document.getElementById('info-message');
-                        if (errorDiv) {
-                            errorDiv.textContent = message;
-                            errorDiv.style.display = 'block';
-                            infoDiv.style.display = 'none';
-                        }
-                    }
-
-                    function showInfo(message) {
-                        const errorDiv = document.getElementById('error-message');
-                        const infoDiv = document.getElementById('info-message');
-                        if (infoDiv) {
-                            infoDiv.textContent = message;
-                            infoDiv.style.display = 'block';
-                            errorDiv.style.display = 'none';
-                        }
-                    }
-
-                    function clearMessages() {
-                        const errorDiv = document.getElementById('error-message');
-                        const infoDiv = document.getElementById('info-message');
-                        if (errorDiv) errorDiv.style.display = 'none';
+                function showError(message) {
+                    const errorDiv = document.getElementById('error-message');
+                    const infoDiv = document.getElementById('info-message');
+                    if (errorDiv) {
+                        errorDiv.textContent = message;
+                        errorDiv.style.display = 'block';
                         if (infoDiv) infoDiv.style.display = 'none';
                     }
+                }
 
-                    // Login form submission
-                    loginForm.addEventListener('submit', async function(e) {
-                        e.preventDefault();
-                        clearMessages();
+                function showInfo(message) {
+                    const errorDiv = document.getElementById('error-message');
+                    const infoDiv = document.getElementById('info-message');
+                    if (infoDiv) {
+                        infoDiv.textContent = message;
+                        infoDiv.style.display = 'block';
+                        if (errorDiv) errorDiv.style.display = 'none';
+                    }
+                }
 
-                        const email = document.getElementById('email').value;
-                        const password = document.getElementById('password').value;
+                function clearMessages() {
+                    const errorDiv = document.getElementById('error-message');
+                    const infoDiv = document.getElementById('info-message');
+                    if (errorDiv) errorDiv.style.display = 'none';
+                    if (infoDiv) infoDiv.style.display = 'none';
+                }
 
-                        try {
-                            loginBtn.disabled = true;
-                            loginBtn.textContent = 'Signing in...';
-                            showInfo('Signing in with Firebase...');
+                async function handleLogin() {
+                    clearMessages();
+                    const email = document.getElementById('email').value;
+                    const password = document.getElementById('password').value;
+                    const loginBtn = document.getElementById('loginBtn');
 
-                            await window.firebaseAuth.signIn(email, password);
-                            
+                    if (!email || !password) {
+                        showError('Please enter email and password.');
+                        return;
+                    }
+
+                    try {
+                        loginBtn.disabled = true;
+                        loginBtn.textContent = 'Signing in...';
+                        showInfo('Signing in with Firebase...');
+
+                        const result = await window.signInUser(email, password);
+                        if (result.success) {
                             showInfo('Login successful! Redirecting...');
-                            // Redirect to dashboard on successful login
-                            setTimeout(() => {
-                                window.location.href = '/';
-                            }, 1500);
-
-                        } catch (error) {
-                            showError(error.message || 'Login failed. Please try again.');
-                        } finally {
-                            loginBtn.disabled = false;
-                            loginBtn.textContent = 'Login with Firebase';
+                        } else {
+                            showError(result.error);
                         }
-                    });
+                    } catch (error) {
+                        showError('Login failed. Please try again.');
+                    } finally {
+                        loginBtn.disabled = false;
+                        loginBtn.textContent = 'Login with Firebase';
+                    }
+                }
 
-                    // Create account button
-                    createAccountBtn.addEventListener('click', async function() {
-                        clearMessages();
+                async function handleCreateAccount() {
+                    clearMessages();
+                    const email = document.getElementById('email').value;
+                    const password = document.getElementById('password').value;
+                    const createBtn = document.getElementById('createAccountBtn');
 
-                        const email = document.getElementById('email').value;
-                        const password = document.getElementById('password').value;
+                    if (!email || !password) {
+                        showError('Please enter email and password to create an account.');
+                        return;
+                    }
 
-                        if (!email || !password) {
-                            showError('Please enter email and password to create an account.');
-                            return;
-                        }
+                    if (password.length < 6) {
+                        showError('Password must be at least 6 characters long.');
+                        return;
+                    }
 
-                        if (password.length < 6) {
-                            showError('Password must be at least 6 characters long.');
-                            return;
-                        }
+                    try {
+                        createBtn.disabled = true;
+                        createBtn.textContent = 'Creating Account...';
+                        showInfo('Creating your Firebase account...');
 
-                        try {
-                            createAccountBtn.disabled = true;
-                            createAccountBtn.textContent = 'Creating Account...';
-                            showInfo('Creating your Firebase account...');
-
-                            await window.firebaseAuth.createAccount(email, password);
-                            
+                        const result = await window.createUserAccount(email, password);
+                        if (result.success) {
                             showInfo('Account created successfully! Redirecting...');
-                            // Redirect to dashboard on successful account creation
-                            setTimeout(() => {
-                                window.location.href = '/';
-                            }, 1500);
-
-                        } catch (error) {
-                            showError(error.message || 'Account creation failed. Please try again.');
-                        } finally {
-                            createAccountBtn.disabled = false;
-                            createAccountBtn.textContent = 'Create Account';
+                        } else {
+                            showError(result.error);
                         }
-                    });
-
-                    // Check if user is already signed in
-                    setTimeout(() => {
-                        if (window.firebaseAuth && window.firebaseAuth.isSignedIn()) {
-                            window.location.href = '/';
-                        }
-                    }, 1000);
-                });
+                    } catch (error) {
+                        showError('Account creation failed. Please try again.');
+                    } finally {
+                        createBtn.disabled = false;
+                        createBtn.textContent = 'Create Account';
+                    }
+                }
             </script>
 
             <div class="firebase-info">

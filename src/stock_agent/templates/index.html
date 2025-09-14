@@ -39,8 +39,11 @@
         <div class="container">
             <div class="header">
                 <h1>Stock Agent Notifications</h1>
-                <div class="user-info">
-                    <!-- Firebase Auth will populate this -->
+                <div class="user-info" 
+                     hx-get="/api/auth/user-info" 
+                     hx-trigger="load delay:1s"
+                     hx-swap="outerHTML">
+                    <!-- User info will be loaded here -->
                 </div>
             </div>
             <div id="notification-status">
@@ -74,16 +77,16 @@
             </div>
         </div>
 
-        <!-- Firebase Auth Integration -->
-        <script type="module" src="/static/js/firebase-auth.js"></script>
+        <!-- HTMX Firebase Auth Integration -->
+        <script type="module" src="/static/js/htmx-firebase-auth.js"></script>
         
         <script type="module">
-            import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+            import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
             import {
                 getMessaging,
                 getToken,
                 onMessage,
-            } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-messaging.js";
+            } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-messaging.js";
 
             // Singleton class for Firebase messaging
             class FirebaseMessagingSingleton {
@@ -391,15 +394,7 @@
                 }
             });
 
-            // Authentication check - redirect to login if not authenticated
-            document.addEventListener('DOMContentLoaded', function() {
-                // Wait for Firebase Auth to initialize
-                setTimeout(() => {
-                    if (window.firebaseAuth && !window.firebaseAuth.isSignedIn()) {
-                        window.location.href = '/login';
-                    }
-                }, 2000);
-            });
+            // HTMX Firebase Auth handles authentication automatically
         </script>
     </body>
 </html>

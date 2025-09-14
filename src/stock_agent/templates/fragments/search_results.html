@@ -1,0 +1,19 @@
+{% if results %}
+    {% for stock in results %}
+    <div class="stock-item">
+        <div class="stock-info">
+            <div class="stock-ticker">{{ stock.ticker }}</div>
+            <div class="stock-name">{{ stock.company_name or 'N/A' }}</div>
+        </div>
+        <button hx-post="/api/favorites" 
+                hx-vals='{"ticker": "{{ stock.ticker }}", "company_name": "{{ stock.company_name or '' }}"}'
+                hx-target="#favoritesList"
+                hx-swap="innerHTML"
+                class="favorite-btn {{ 'favorited' if stock.ticker in user_favorites else '' }}">
+            {{ 'Remove' if stock.ticker in user_favorites else 'Add to Favorites' }}
+        </button>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="error">No stocks found for that search.</div>
+{% endif %}

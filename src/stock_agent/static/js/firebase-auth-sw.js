@@ -1,37 +1,13 @@
-// Firebase Authentication Service Worker - Following Official Firebase Pattern
-// Based on: https://firebase.google.com/docs/auth/web/service-worker-sessions
+// Simplified Firebase Service Worker for HTMX Integration
+// Handles Firebase messaging and minimal token management
 
 // Import Firebase scripts
-importScripts('https://www.gstatic.com/firebasejs/12.1.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/12.1.0/firebase-auth-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/12.1.0/firebase-messaging-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/12.2.1/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/12.2.1/firebase-messaging-compat.js');
 
 // Firebase configuration will be loaded dynamically
 let firebaseConfig = null;
 let messaging = null;
-
-/**
- * Returns a promise that resolves with an ID token if available.
- * @return {!Promise<?string>} The promise that resolves with an ID token if
- *     available. Otherwise, the promise resolves with null.
- */
-const getIdTokenPromise = () => {
-  return new Promise((resolve, reject) => {
-    const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
-      unsubscribe();
-      if (user) {
-        user.getIdToken().then((idToken) => {
-          resolve(idToken);
-        }, (error) => {
-          console.error('Error getting ID token:', error);
-          resolve(null);
-        });
-      } else {
-        resolve(null);
-      }
-    });
-  });
-};
 
 /**
  * Get the origin from a URL

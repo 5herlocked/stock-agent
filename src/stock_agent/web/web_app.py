@@ -170,36 +170,23 @@ def create_web_app() -> Robyn:
     # Protected routes
     @app.get("/")
     async def index(request: Request):
-        user = get_current_user(request)
-        if not user:
-            return Response(
-                status_code=302,
-                description="",
-                headers={"Location": "/login"}
-            )
-
+        # For Firebase auth, we'll let the frontend handle authentication
+        # The template will check Firebase auth state and redirect if needed
         context = {
             "framework": "Robyn",
             "templating_engine": "Jinja2",
-            "user": user
+            "user": None  # Firebase auth will handle user info
         }
         template = jinja_template.render_template("dashboard.html", **context)
         return template
 
     @app.get("/notifications")
     async def notifications_page(request: Request):
-        user = get_current_user(request)
-        if not user:
-            return Response(
-                status_code=302,
-                description="",
-                headers={"Location": "/login"}
-            )
-
+        # Let Firebase auth handle authentication on the frontend
         context = {
             "framework": "Robyn",
             "templating_engine": "Jinja2",
-            "user": user
+            "user": None  # Firebase auth will handle user info
         }
         template = jinja_template.render_template("index.html", **context)
         return template
@@ -267,21 +254,43 @@ def create_web_app() -> Robyn:
         }
         return config
 
+    @app.get('/api/auth/status')
+    async def get_auth_status(request: Request):
+        """HTMX-friendly endpoint to check authentication status"""
+        user = get_user_from_firebase_token(request)
+        if user:
+            return {
+                'authenticated': True,
+                'user': {
+                    'email': user.email,
+                    'username': user.username
+                }
+            }
+        else:
+            return {'authenticated': False}
+
+    @app.get('/api/auth/user-info')
+    async def get_user_info(request: Request):
+        """Get current user info for HTMX updates"""
+        user = get_user_from_firebase_token(request)
+        if not user:
+            return Response(
+                status_code=401,
+                description="Unauthorized",
+                headers={"Content-Type": "text/html"}
+            )
+        
+        template = jinja_template.render_template("fragments/user_info.html", user=user)
+        return template
+
     # Stock search and favorites routes
     @app.get('/stocks')
     async def stocks_page(request: Request):
-        user = get_current_user(request)
-        if not user:
-            return Response(
-                status_code=302,
-                description="",
-                headers={"Location": "/login"}
-            )
-
+        # Let Firebase auth handle authentication on the frontend
         context = {
             "framework": "Robyn",
             "templating_engine": "Jinja2",
-            "user": user
+            "user": None  # Firebase auth will handle user info
         }
         template = jinja_template.render_template("stocks.html", **context)
         return template
@@ -290,42 +299,52 @@ def create_web_app() -> Robyn:
     async def search_stocks(request: Request):
         user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
         if not user:
-            return {'error': 'Unauthorized'}, 401
+            template = jinja_template.render_template("fragments/error.html", message="Please sign in to search stocks")
+            return template
 
         query = request.query_params.get('q', '')
         if not query:
-            return {'error': 'Query parameter required'}, 400
+            template = jinja_template.render_template("fragments/error.html", message="Please enter a search term")
+            return template
 
         try:
             results = stock_service.search_stocks(query)
-            return {'results': results}
+            
+            # Get user favorites to show correct button state
+            favorites = auth_service.get_user_favorites(user.id)
+            user_favorites = {fav.ticker for fav in favorites}
+            
+            template = jinja_template.render_template(
+                "fragments/search_results.html", 
+                results=results,
+                user_favorites=user_favorites
+            )
+            return template
         except Exception as e:
-            return {'error': 'Search failed'}, 500
+            template = jinja_template.render_template("fragments/error.html", message="Search failed. Please try again.")
+            return template
 
     @app.get('/api/favorites')
     async def get_favorites(request: Request):
         user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
         if not user:
-            return {'error': 'Unauthorized'}, 401
+            template = jinja_template.render_template("fragments/error.html", message="Please sign in to view favorites")
+            return template
 
         try:
             favorites = auth_service.get_user_favorites(user.id)
-            favorites_data = []
-            for fav in favorites:
-                favorites_data.append({
-                    'ticker': fav.ticker,
-                    'company_name': fav.company_name,
-                    'added_at': fav.added_at.isoformat() if fav.added_at else None
-                })
-            return {'favorites': favorites_data}
+            template = jinja_template.render_template("fragments/favorites_list.html", favorites=favorites)
+            return template
         except Exception as e:
-            return {'error': 'Failed to load favorites'}, 500
+            template = jinja_template.render_template("fragments/error.html", message="Failed to load favorites")
+            return template
 
     @app.post('/api/favorites')
     async def add_favorite(request: Request):
         user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
         if not user:
-            return {'error': 'Unauthorized'}, 401
+            template = jinja_template.render_template("fragments/error.html", message="Please sign in to add favorites")
+            return template
 
         try:
             import json
@@ -339,22 +358,29 @@ def create_web_app() -> Robyn:
             company_name = data.get('company_name', '')
 
             if not ticker:
-                return {'error': 'Ticker required'}, 400
+                template = jinja_template.render_template("fragments/error.html", message="Ticker required")
+                return template
 
             success = auth_service.add_favorite(user.id, ticker, company_name)
             if success:
-                return {'success': True, 'message': 'Added to favorites'}
+                # Return updated favorites list for HTMX
+                favorites = auth_service.get_user_favorites(user.id)
+                template = jinja_template.render_template("fragments/favorites_list.html", favorites=favorites)
+                return template
             else:
-                return {'error': 'Already in favorites or failed to add'}, 400
+                template = jinja_template.render_template("fragments/error.html", message="Already in favorites or failed to add")
+                return template
 
         except (json.JSONDecodeError, Exception) as e:
-            return {'error': 'Invalid request'}, 400
+            template = jinja_template.render_template("fragments/error.html", message="Invalid request")
+            return template
 
     @app.delete('/api/favorites')
     async def remove_favorite(request: Request):
         user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
         if not user:
-            return {'error': 'Unauthorized'}, 401
+            template = jinja_template.render_template("fragments/error.html", message="Please sign in to remove favorites")
+            return template
 
         try:
             import json
@@ -367,16 +393,22 @@ def create_web_app() -> Robyn:
             ticker = data.get('ticker', '').upper()
 
             if not ticker:
-                return {'error': 'Ticker required'}, 400
+                template = jinja_template.render_template("fragments/error.html", message="Ticker required")
+                return template
 
             success = auth_service.remove_favorite(user.id, ticker)
             if success:
-                return {'success': True, 'message': 'Removed from favorites'}
+                # Return updated favorites list for HTMX
+                favorites = auth_service.get_user_favorites(user.id)
+                template = jinja_template.render_template("fragments/favorites_list.html", favorites=favorites)
+                return template
             else:
-                return {'error': 'Not in favorites or failed to remove'}, 400
+                template = jinja_template.render_template("fragments/error.html", message="Not in favorites or failed to remove")
+                return template
 
         except (json.JSONDecodeError, Exception) as e:
-            return {'error': 'Invalid request'}, 400
+            template = jinja_template.render_template("fragments/error.html", message="Invalid request")
+            return template
 
     @app.get('/api/dashboard-favorites')
     async def get_dashboard_favorites(request: Request):

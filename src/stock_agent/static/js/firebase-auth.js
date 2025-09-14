@@ -3,7 +3,7 @@
  * Handles Firebase Auth integration and service worker communication
  */
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
 import { 
     getAuth, 
     signInWithEmailAndPassword, 
@@ -11,7 +11,7 @@ import {
     signOut, 
     onAuthStateChanged,
     updateProfile
-} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js';
+} from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js';
 
 class FirebaseAuthManager {
     constructor() {
@@ -82,6 +82,14 @@ class FirebaseAuthManager {
         if (user) {
             console.log('User signed in:', user.email);
             this.updateUIForSignedInUser(user);
+            
+            // If on login page and user is authenticated, redirect to dashboard
+            if (window.location.pathname === '/login') {
+                console.log('User authenticated on login page, redirecting to dashboard');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 500);
+            }
         } else {
             console.log('User signed out');
             this.updateUIForSignedOutUser();
@@ -153,7 +161,29 @@ class FirebaseAuthManager {
      * Check if user is signed in
      */
     isSignedIn() {
-        return this.currentUser !== null;
+        return this.currentUser !== null && this.initialized;
+    }
+
+    /**
+     * Wait for authentication to be ready
+     */
+    async waitForAuth() {
+        return new Promise((resolve) => {
+            if (this.initialized) {
+                resolve(this.currentUser);
+                return;
+            }
+            
+            // Wait for initialization
+            const checkAuth = () => {
+                if (this.initialized) {
+                    resolve(this.currentUser);
+                } else {
+                    setTimeout(checkAuth, 100);
+                }
+            };
+            checkAuth();
+        });
     }
 
     /**

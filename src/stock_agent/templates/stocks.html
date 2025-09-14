@@ -52,6 +52,21 @@
         .nav-link:hover {
             text-decoration: underline;
         }
+        .htmx-indicator {
+            display: none;
+            color: #666;
+            font-style: italic;
+            margin: 10px 0;
+        }
+        .htmx-request .htmx-indicator {
+            display: block;
+        }
+        .empty-state {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 20px;
+        }
         .search-section {
             margin-bottom: 30px;
         }
@@ -181,38 +196,42 @@
                     <a href="/stocks" class="nav-link">Search Stocks</a>
                 </nav>
             </div>
-            <div class="user-info">
-                <!-- Firebase Auth will populate this -->
+            <div class="user-info" 
+                 hx-get="/api/auth/user-info" 
+                 hx-trigger="load delay:1s"
+                 hx-swap="outerHTML">
+                <!-- User info will be loaded here -->
             </div>
         </div>
 
         <div class="search-section">
             <h2>Search Stocks</h2>
             <div class="search-box">
-                <input type="text" id="searchInput" class="search-input" placeholder="Enter stock ticker (e.g., AAPL, MSFT, TSLA)">
-                <button onclick="searchStocks()" class="search-btn">Search</button>
+                <input type="text" id="searchInput" class="search-input" placeholder="Enter stock ticker (e.g., AAPL, MSFT, TSLA)" 
+                       name="q">
+                <button hx-get="/api/search-stocks" 
+                        hx-include="#searchInput"
+                        hx-target="#searchResults"
+                        hx-indicator="#search-loading"
+                        class="search-btn">Search</button>
             </div>
+            <div id="search-loading" class="htmx-indicator">Searching...</div>
             <div id="searchResults" class="search-results"></div>
         </div>
 
         <div class="favorites-section">
             <h2>Your Favorite Stocks</h2>
-            <div id="favoritesList" class="favorites-list">
+            <div id="favoritesList" class="favorites-list"
+                 hx-get="/api/favorites"
+                 hx-trigger="load delay:2s"
+                 hx-swap="innerHTML">
                 <div class="loading">Loading your favorites...</div>
             </div>
         </div>
     </div>
 
     <script>
-        let userFavorites = new Set();
-
-        // Load user favorites on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            loadFavorites();
-        });
-
-        // Search stocks
-        async function searchStocks() {
+        // HTMX handles all the functionality now
             const query = document.getElementById('searchInput').value.trim();
             if (!query) return;
 
@@ -325,25 +344,18 @@
             await toggleFavorite(ticker, '');
         }
 
-        // Allow Enter key to search
-        document.getElementById('searchInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                searchStocks();
-            }
+        // Allow Enter key to trigger HTMX search
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    // Trigger the HTMX search button
+                    document.querySelector('.search-btn').click();
+                }
+            });
         });
     </script>
 
-    <!-- Firebase Auth Integration -->
-    <script type="module" src="/static/js/firebase-auth.js"></script>
-    <script>
-        // Authentication check
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(() => {
-                if (window.firebaseAuth && !window.firebaseAuth.isSignedIn()) {
-                    window.location.href = '/login';
-                }
-            }, 2000);
-        });
-    </script>
+    <!-- HTMX Firebase Auth Integration -->
+    <script type="module" src="/static/js/htmx-firebase-auth.js"></script>
 </body>
 </html>
