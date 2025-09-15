@@ -347,13 +347,7 @@ def create_web_app() -> Robyn:
             return template
 
         try:
-            import json
-            if isinstance(request.body, bytes):
-                body_str = request.body.decode('utf-8')
-            else:
-                body_str = request.body
-
-            data = json.loads(body_str)
+            data = request.body
             ticker = data.get('ticker', '').upper()
             company_name = data.get('company_name', '')
 
