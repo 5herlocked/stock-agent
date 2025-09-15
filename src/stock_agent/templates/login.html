@@ -194,22 +194,30 @@
                         return;
                     }
 
+                    let loginSuccess = false;
                     try {
                         loginBtn.disabled = true;
                         loginBtn.textContent = "Signing in...";
-                        showInfo("Signing in with Firebase...");
+                        showInfo("Signing in...");
 
                         const result = await window.signInUser(email, password);
                         if (result.success) {
+                            loginSuccess = true;
                             showInfo("Login successful! Redirecting...");
+                            // Add a small delay to allow Firebase auth state to update, then redirect
+                            setTimeout(() => {
+                                window.location.href = "/";
+                            }, 1000);
                         } else {
                             showError(result.error);
                         }
                     } catch (error) {
                         showError("Login failed. Please try again.");
                     } finally {
-                        loginBtn.disabled = false;
-                        loginBtn.textContent = "Login";
+                        if (!loginSuccess) {
+                            loginBtn.disabled = false;
+                            loginBtn.textContent = "Login";
+                        }
                     }
                 }
             </script>
