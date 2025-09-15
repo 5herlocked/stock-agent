@@ -187,7 +187,11 @@
                      hx-swap="outerHTML">
                     <!-- User info will be loaded here -->
                 </div>
-                <button onclick="refreshData()" class="refresh-btn">
+                <button hx-get="/api/dashboard-favorites"
+                        hx-target="#favoritesSection"
+                        hx-swap="innerHTML"
+                        hx-trigger="click"
+                        class="refresh-btn">
                     Refresh
                 </button>
             </div>
@@ -195,7 +199,10 @@
             <div class="dashboard-grid">
                 <div class="section">
                     <h2>Your Favorite Stocks</h2>
-                    <div id="favoritesSection">
+                    <div id="favoritesSection"
+                         hx-get="/api/dashboard-favorites"
+                         hx-trigger="load delay:1s"
+                         hx-swap="innerHTML">
                         <div class="loading">
                             Loading your favorite stocks...
                         </div>
@@ -204,7 +211,10 @@
 
                 <div class="section">
                     <h2>Major Market Indexes</h2>
-                    <div id="indexesSection">
+                    <div id="indexesSection"
+                         hx-get="/api/major-indexes"
+                         hx-trigger="load delay:2s"
+                         hx-swap="innerHTML">
                         <div class="loading">Loading market indexes...</div>
                     </div>
                 </div>
@@ -215,123 +225,6 @@
         <script src="https://unpkg.com/htmx.org@2.0.7"></script>
         
         <script src="/static/js/auth-utils.js"></script>
-        <script>
-            let refreshInterval;
-
-            // Load data on page load
-            document.addEventListener("DOMContentLoaded", function () {
-                loadDashboardData();
-                // Auto-refresh every 30 seconds
-                refreshInterval = setInterval(loadDashboardData, 30000);
-            });
-
-            // Manual refresh
-            function refreshData() {
-                loadDashboardData();
-            }
-
-            // Load all dashboard data
-            async function loadDashboardData() {
-                await Promise.all([loadFavorites(), loadIndexes()]);
-            }
-
-            // Load user favorites with stock data
-            async function loadFavorites() {
-                try {
-                    const response = await fetch("/api/dashboard-favorites");
-                    const data = await response.json();
-
-                    const favoritesSection =
-                        document.getElementById("favoritesSection");
-
-                    if (data.error) {
-                        favoritesSection.innerHTML = `<div class="error">${data.error}</div>`;
-                        return;
-                    }
-
-                    if (data.favorites && data.favorites.length > 0) {
-                        favoritesSection.innerHTML = `
-                        <div class="stock-grid">
-                            ${data.favorites.map((stock) => createStockCard(stock)).join("")}
-                        </div>
-                    `;
-                    } else {
-                        favoritesSection.innerHTML = `
-                        <div class="no-favorites">
-                            <p>No favorite stocks yet!</p>
-                            <p><a href="/stocks">Search and add some stocks</a> to see them here.</p>
-                        </div>
-                    `;
-                    }
-                } catch (error) {
-                    document.getElementById("favoritesSection").innerHTML =
-                        '<div class="error">Error loading favorite stocks.</div>';
-                }
-            }
-
-            // Load major market indexes
-            async function loadIndexes() {
-                try {
-                    const response = await fetch("/api/major-indexes");
-                    const data = await response.json();
-
-                    const indexesSection =
-                        document.getElementById("indexesSection");
-
-                    if (data.error) {
-                        indexesSection.innerHTML = `<div class="error">${data.error}</div>`;
-                        return;
-                    }
-
-                    if (data.indexes && data.indexes.length > 0) {
-                        indexesSection.innerHTML = `
-                        <div class="stock-grid">
-                            ${data.indexes.map((stock) => createStockCard(stock)).join("")}
-                        </div>
-                    `;
-                    } else {
-                        indexesSection.innerHTML =
-                            '<div class="error">No index data available.</div>';
-                    }
-                } catch (error) {
-                    document.getElementById("indexesSection").innerHTML =
-                        '<div class="error">Error loading market indexes.</div>';
-                }
-            }
-
-            // Create stock card HTML
-            function createStockCard(stock) {
-                const changeClass =
-                    stock.change > 0
-                        ? "positive"
-                        : stock.change < 0
-                          ? "negative"
-                          : "neutral";
-                const changeSymbol = stock.change > 0 ? "+" : "";
-
-                return `
-                <div class="stock-card">
-                    <div class="stock-ticker">${stock.ticker}</div>
-                    <div class="stock-name">${stock.company_name}</div>
-                    <div class="stock-price">$${stock.price.toFixed(2)}</div>
-                    <div class="stock-change ${changeClass}">
-                        ${changeSymbol}${stock.change.toFixed(2)} (${changeSymbol}${stock.change_percent.toFixed(2)}%)
-                    </div>
-                    <div class="stock-details">
-                        <span>Volume: ${stock.volume.toLocaleString()}</span>
-                        ${stock.market_cap ? `<span>Cap: ${stock.market_cap}</span>` : ""}
-                    </div>
-                </div>
-            `;
-            }
-
-            // Clean up interval on page unload
-            window.addEventListener("beforeunload", function () {
-                if (refreshInterval) {
-                    clearInterval(refreshInterval);
-                }
-            });
-        </script>
 
         <!-- HTMX Firebase Auth Integration -->
         <script type="module" src="/static/js/htmx-firebase-auth.js"></script>
