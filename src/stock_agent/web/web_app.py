@@ -321,7 +321,8 @@ def create_web_app() -> Robyn:
             )
             return template
         except Exception as e:
-            template = jinja_template.render_template("fragments/error.html", message="Search failed. Please try again.")
+            error_message = str(e) if "rate limit" in str(e).lower() else "Search failed. Please try again."
+            template = jinja_template.render_template("fragments/error.html", message=error_message)
             return template
 
     @app.get('/api/favorites')
@@ -347,13 +348,24 @@ def create_web_app() -> Robyn:
             return template
 
         try:
-            data = request.body
-            ticker = data.get('ticker', '').upper()
-            company_name = data.get('company_name', '')
+            # Use query parameters - only ticker needed, get company name from Polygon
+            ticker = request.query_params.get('ticker', '').upper()
 
             if not ticker:
                 template = jinja_template.render_template("fragments/error.html", message="Ticker required")
                 return template
+
+            # Get company name from Polygon API by searching for the ticker
+            try:
+                search_results = stock_service.search_stocks(ticker)
+                company_name = ''
+                # Find exact ticker match in search results
+                for result in search_results:
+                    if result.get('ticker', '').upper() == ticker:
+                        company_name = result.get('company_name', '')
+                        break
+            except:
+                company_name = ''
 
             success = auth_service.add_favorite(user.id, ticker, company_name)
             if success:
@@ -365,7 +377,7 @@ def create_web_app() -> Robyn:
                 template = jinja_template.render_template("fragments/error.html", message="Already in favorites or failed to add")
                 return template
 
-        except (json.JSONDecodeError, Exception) as e:
+        except Exception as e:
             template = jinja_template.render_template("fragments/error.html", message="Invalid request")
             return template
 
@@ -377,14 +389,8 @@ def create_web_app() -> Robyn:
             return template
 
         try:
-            import json
-            if isinstance(request.body, bytes):
-                body_str = request.body.decode('utf-8')
-            else:
-                body_str = request.body
-
-            data = json.loads(body_str)
-            ticker = data.get('ticker', '').upper()
+            # Use query parameters instead of JSON body
+            ticker = request.query_params.get('ticker', '').upper()
 
             if not ticker:
                 template = jinja_template.render_template("fragments/error.html", message="Ticker required")
@@ -400,7 +406,7 @@ def create_web_app() -> Robyn:
                 template = jinja_template.render_template("fragments/error.html", message="Not in favorites or failed to remove")
                 return template
 
-        except (json.JSONDecodeError, Exception) as e:
+        except Exception as e:
             template = jinja_template.render_template("fragments/error.html", message="Invalid request")
             return template
 
@@ -413,7 +419,7 @@ def create_web_app() -> Robyn:
         try:
             favorites = auth_service.get_user_favorites(user.id)
             if not favorites:
-                return jinja_template.render_template("fragments/favorites_list.html", favorites=[], message="Invalid Request")
+                return jinja_template.render_template("fragments/dashboard_favorites.html", favorites=[])
 
             # Get stock data for favorites
             tickers = [fav.ticker for fav in favorites]
@@ -432,9 +438,10 @@ def create_web_app() -> Robyn:
                     'market_cap': stock.market_cap
                 })
 
-            return jinja_template.render_template("fragments/favorites_list.html", favorites=favorites_data)
+            return jinja_template.render_template("fragments/dashboard_favorites.html", favorites=favorites_data)
         except Exception as e:
-            return jinja_template.render_template("fragments/error.html", message="Failed to load dashboard data")
+            error_message = str(e) if "rate limit" in str(e).lower() else "Failed to load dashboard data. Please try again."
+            return jinja_template.render_template("fragments/error.html", message=error_message)
 
     @app.get('/api/major-indexes')
     async def get_major_indexes(request: Request):
@@ -457,8 +464,9 @@ def create_web_app() -> Robyn:
                     'market_cap': stock.market_cap
                 })
 
-            return jinja_template.render_template("fragments/favorites_list.html", favorites=indexes_data)
+            return jinja_template.render_template("fragments/major_indexes.html", indexes=indexes_data)
         except Exception as e:
-            return jinja_template.render_template("fragments/error.html", message="Failed to load index data")
+            error_message = str(e) if "rate limit" in str(e).lower() else "Failed to load index data. Please try again."
+            return jinja_template.render_template("fragments/error.html", message=error_message)
 
     return app

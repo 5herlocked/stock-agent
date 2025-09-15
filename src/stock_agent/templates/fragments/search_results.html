@@ -5,8 +5,7 @@
             <div class="stock-ticker">{{ stock.ticker }}</div>
             <div class="stock-name">{{ stock.company_name or 'N/A' }}</div>
         </div>
-        <button hx-post="/api/favorites" 
-                hx-vals='{"ticker": "{{ stock.ticker }}", "company_name": "{{ stock.company_name or '' }}"}'
+        <button hx-post="/api/favorites?ticker={{ stock.ticker }}"
                 hx-target="#favoritesList"
                 hx-swap="innerHTML"
                 class="favorite-btn {{ 'favorited' if stock.ticker in user_favorites else '' }}">
