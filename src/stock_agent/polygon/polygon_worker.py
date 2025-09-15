@@ -35,24 +35,20 @@ class PolygonWorker:
             'ticker_info': {},
         }
 
-    def _wait_for_rate_limit(self):
-        """Ensure we don't exceed the rate limit of 5 calls per minute"""
+    def _check_rate_limit(self):
+        """Check if we can make a call without blocking. Raises exception if rate limited."""
         now = time.time()
         
         # Remove calls older than the rate window
         while self.call_times and now - self.call_times[0] >= self.rate_window:
             self.call_times.popleft()
         
-        # If we're at the rate limit, wait until we can make another call
+        # If we're at the rate limit, raise an exception instead of blocking
         if len(self.call_times) >= self.rate_limit:
-            sleep_time = self.rate_window - (now - self.call_times[0]) + 0.1  # Add small buffer
+            sleep_time = self.rate_window - (now - self.call_times[0]) + 0.1
             if sleep_time > 0:
-                print(f"Rate limit reached, waiting {sleep_time:.1f} seconds...")
-                time.sleep(sleep_time)
-                # Clean up old calls after waiting
-                now = time.time()
-                while self.call_times and now - self.call_times[0] >= self.rate_window:
-                    self.call_times.popleft()
+                print(f"Rate limit reached, would need to wait {sleep_time:.1f} seconds. Failing fast.")
+                raise Exception(f"Polygon API rate limit exceeded. Try again in {sleep_time:.0f} seconds.")
         
         # Record this call
         self.call_times.append(now)
@@ -88,7 +84,7 @@ class PolygonWorker:
             print(f"Using cached market aggregates for {date}")
             return cached_data
         
-        self._wait_for_rate_limit()
+        self._check_rate_limit()
         try:
             grouped_aggs = self.client.get_grouped_daily_aggs(
                 date,
@@ -122,7 +118,7 @@ class PolygonWorker:
             print(f"Using cached search results for '{query}'")
             return cached_data
         
-        self._wait_for_rate_limit()
+        self._check_rate_limit()
         try:
             # Use the reference tickers API with search parameter
             tickers = self.client.list_tickers(
@@ -182,7 +178,7 @@ class PolygonWorker:
         if cached_data is not None:
             return cached_data
         
-        self._wait_for_rate_limit()
+        self._check_rate_limit()
         try:
             # Use reference tickers API to get ticker info
             tickers = self.client.list_tickers(
