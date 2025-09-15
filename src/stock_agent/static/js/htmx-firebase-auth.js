@@ -36,14 +36,18 @@ async function initializeFirebaseAuth() {
           try {
             authToken = await user.getIdToken();
             console.log("Firebase auth token obtained");
+            // Update UI when auth state changes
+            updateAuthUI(true);
             resolve(authToken);
           } catch (error) {
             console.error("Error getting ID token:", error);
             authToken = null;
+            updateAuthUI(false);
             resolve(null);
           }
         } else {
           authToken = null;
+          updateAuthUI(false);
           resolve(null);
         }
       });
