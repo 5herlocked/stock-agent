@@ -75,7 +75,7 @@ def create_web_app() -> Robyn:
     async def firebase_service_worker(request: Request):
         # Serve the new Firebase auth service worker
         return serve_file(os.path.join(src_path, "static", "js", "firebase-auth-sw.js"))
-    
+
     @app.get("/firebase-auth-sw.js")
     async def firebase_auth_service_worker(request: Request):
         return serve_file(os.path.join(src_path, "static", "js", "firebase-auth-sw.js"))
@@ -279,7 +279,7 @@ def create_web_app() -> Robyn:
                 description="Unauthorized",
                 headers={"Content-Type": "text/html"}
             )
-        
+
         template = jinja_template.render_template("fragments/user_info.html", user=user)
         return template
 
@@ -309,13 +309,13 @@ def create_web_app() -> Robyn:
 
         try:
             results = stock_service.search_stocks(query)
-            
+
             # Get user favorites to show correct button state
             favorites = auth_service.get_user_favorites(user.id)
             user_favorites = {fav.ticker for fav in favorites}
-            
+
             template = jinja_template.render_template(
-                "fragments/search_results.html", 
+                "fragments/search_results.html",
                 results=results,
                 user_favorites=user_favorites
             )
@@ -414,12 +414,12 @@ def create_web_app() -> Robyn:
     async def get_dashboard_favorites(request: Request):
         user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
         if not user:
-            return {'error': 'Unauthorized'}, 401
+            return jinja_template.render_template("fragments/error.html", message="Unauthorized")
 
         try:
             favorites = auth_service.get_user_favorites(user.id)
             if not favorites:
-                return {'favorites': []}
+                return jinja_template.render_template("fragments/favorites_list.html", favorites=[], message="Invalid Request")
 
             # Get stock data for favorites
             tickers = [fav.ticker for fav in favorites]
@@ -438,15 +438,15 @@ def create_web_app() -> Robyn:
                     'market_cap': stock.market_cap
                 })
 
-            return {'favorites': favorites_data}
+            return jinja_template.render_template("fragments/favorites_list.html", favorites=favorites_data)
         except Exception as e:
-            return {'error': 'Failed to load dashboard data'}, 500
+            return jinja_template.render_template("fragments/error.html", message="Failed to load dashboard data")
 
     @app.get('/api/major-indexes')
     async def get_major_indexes(request: Request):
         user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
         if not user:
-            return {'error': 'Unauthorized'}, 401
+            return jinja_template.render_template("fragments/error.html", message="Unauthorized")
 
         try:
             indexes = stock_service.get_major_indexes()
@@ -463,8 +463,8 @@ def create_web_app() -> Robyn:
                     'market_cap': stock.market_cap
                 })
 
-            return {'indexes': indexes_data}
+            return jinja_template.render_template("fragments/favorites_list.html", favorites=indexes_data)
         except Exception as e:
-            return {'error': 'Failed to load index data'}, 500
+            return jinja_template.render_template("fragments/error.html", message="Failed to load index data")
 
     return app

@@ -6,7 +6,7 @@
         <title>Stock Agent Notifications</title>
 
         <!-- HTMX -->
-        <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+        <script src="https://unpkg.com/htmx.org@2.0.7"></script>
         <style>
             .header {
                 display: flex;
@@ -39,10 +39,12 @@
         <div class="container">
             <div class="header">
                 <h1>Stock Agent Notifications</h1>
-                <div class="user-info" 
-                     hx-get="/api/auth/user-info" 
-                     hx-trigger="load delay:1s"
-                     hx-swap="outerHTML">
+                <div
+                    class="user-info"
+                    hx-get="/api/auth/user-info"
+                    hx-trigger="load delay:1s"
+                    hx-swap="outerHTML"
+                >
                     <!-- User info will be loaded here -->
                 </div>
             </div>
@@ -79,7 +81,7 @@
 
         <!-- HTMX Firebase Auth Integration -->
         <script type="module" src="/static/js/htmx-firebase-auth.js"></script>
-        
+
         <script type="module">
             import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
             import {
@@ -393,8 +395,6 @@
                     ).style.display = "block";
                 }
             });
-
-            // HTMX Firebase Auth handles authentication automatically
         </script>
     </body>
 </html>

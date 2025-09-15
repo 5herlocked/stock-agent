@@ -103,8 +103,20 @@
         <div class="login-container">
             <h1>Login</h1>
 
-            <div class="error" id="error-message" style="display: none;"></div>
-            <div class="info" id="info-message" style="display: none; background-color: #d1ecf1; color: #0c5460; padding: 10px; border-radius: 4px; margin-bottom: 15px; text-align: center;"></div>
+            <div class="error" id="error-message" style="display: none"></div>
+            <div
+                class="info"
+                id="info-message"
+                style="
+                    display: none;
+                    background-color: #d1ecf1;
+                    color: #0c5460;
+                    padding: 10px;
+                    border-radius: 4px;
+                    margin-bottom: 15px;
+                    text-align: center;
+                "
+            ></div>
 
             <form id="loginForm" class="login-form">
                 <div class="form-group">
@@ -122,113 +134,137 @@
                     />
                 </div>
 
-                <button type="button" onclick="handleLogin()" id="loginBtn">Login with Firebase</button>
-                <button type="button" onclick="handleCreateAccount()" id="createAccountBtn" style="background-color: #28a745; margin-top: 10px;">Create Account</button>
+                <button type="button" onclick="handleLogin()" id="loginBtn">
+                    Login with Firebase
+                </button>
+                <button
+                    type="button"
+                    onclick="handleCreateAccount()"
+                    id="createAccountBtn"
+                    style="background-color: #28a745; margin-top: 10px"
+                >
+                    Create Account
+                </button>
             </form>
 
-            <div class="auth-content" style="display: none; text-align: center;">
+            <div class="auth-content" style="display: none; text-align: center">
                 <h2>Welcome!</h2>
                 <p>You are successfully logged in.</p>
-                <a href="/" style="color: #007bff; text-decoration: none;">Go to Dashboard</a>
+                <a href="/" style="color: #007bff; text-decoration: none"
+                    >Go to Dashboard</a
+                >
             </div>
 
-            <script type="module" src="/static/js/htmx-firebase-auth.js"></script>
+            <script
+                type="module"
+                src="/static/js/htmx-firebase-auth.js"
+            ></script>
             <script>
                 function showError(message) {
-                    const errorDiv = document.getElementById('error-message');
-                    const infoDiv = document.getElementById('info-message');
+                    const errorDiv = document.getElementById("error-message");
+                    const infoDiv = document.getElementById("info-message");
                     if (errorDiv) {
                         errorDiv.textContent = message;
-                        errorDiv.style.display = 'block';
-                        if (infoDiv) infoDiv.style.display = 'none';
+                        errorDiv.style.display = "block";
+                        if (infoDiv) infoDiv.style.display = "none";
                     }
                 }
 
                 function showInfo(message) {
-                    const errorDiv = document.getElementById('error-message');
-                    const infoDiv = document.getElementById('info-message');
+                    const errorDiv = document.getElementById("error-message");
+                    const infoDiv = document.getElementById("info-message");
                     if (infoDiv) {
                         infoDiv.textContent = message;
-                        infoDiv.style.display = 'block';
-                        if (errorDiv) errorDiv.style.display = 'none';
+                        infoDiv.style.display = "block";
+                        if (errorDiv) errorDiv.style.display = "none";
                     }
                 }
 
                 function clearMessages() {
-                    const errorDiv = document.getElementById('error-message');
-                    const infoDiv = document.getElementById('info-message');
-                    if (errorDiv) errorDiv.style.display = 'none';
-                    if (infoDiv) infoDiv.style.display = 'none';
+                    const errorDiv = document.getElementById("error-message");
+                    const infoDiv = document.getElementById("info-message");
+                    if (errorDiv) errorDiv.style.display = "none";
+                    if (infoDiv) infoDiv.style.display = "none";
                 }
 
                 async function handleLogin() {
                     clearMessages();
-                    const email = document.getElementById('email').value;
-                    const password = document.getElementById('password').value;
-                    const loginBtn = document.getElementById('loginBtn');
+                    const email = document.getElementById("email").value;
+                    const password = document.getElementById("password").value;
+                    const loginBtn = document.getElementById("loginBtn");
 
                     if (!email || !password) {
-                        showError('Please enter email and password.');
+                        showError("Please enter email and password.");
                         return;
                     }
 
                     try {
                         loginBtn.disabled = true;
-                        loginBtn.textContent = 'Signing in...';
-                        showInfo('Signing in with Firebase...');
+                        loginBtn.textContent = "Signing in...";
+                        showInfo("Signing in with Firebase...");
 
                         const result = await window.signInUser(email, password);
                         if (result.success) {
-                            showInfo('Login successful! Redirecting...');
+                            showInfo("Login successful! Redirecting...");
                         } else {
                             showError(result.error);
                         }
                     } catch (error) {
-                        showError('Login failed. Please try again.');
+                        showError("Login failed. Please try again.");
                     } finally {
                         loginBtn.disabled = false;
-                        loginBtn.textContent = 'Login with Firebase';
+                        loginBtn.textContent = "Login with Firebase";
                     }
                 }
 
                 async function handleCreateAccount() {
                     clearMessages();
-                    const email = document.getElementById('email').value;
-                    const password = document.getElementById('password').value;
-                    const createBtn = document.getElementById('createAccountBtn');
+                    const email = document.getElementById("email").value;
+                    const password = document.getElementById("password").value;
+                    const createBtn =
+                        document.getElementById("createAccountBtn");
 
                     if (!email || !password) {
-                        showError('Please enter email and password to create an account.');
+                        showError(
+                            "Please enter email and password to create an account.",
+                        );
                         return;
                     }
 
                     if (password.length < 6) {
-                        showError('Password must be at least 6 characters long.');
+                        showError(
+                            "Password must be at least 6 characters long.",
+                        );
                         return;
                     }
 
                     try {
                         createBtn.disabled = true;
-                        createBtn.textContent = 'Creating Account...';
-                        showInfo('Creating your Firebase account...');
+                        createBtn.textContent = "Creating Account...";
+                        showInfo("Creating your Firebase account...");
 
-                        const result = await window.createUserAccount(email, password);
+                        const result = await window.createUserAccount(
+                            email,
+                            password,
+                        );
                         if (result.success) {
-                            showInfo('Account created successfully! Redirecting...');
+                            showInfo(
+                                "Account created successfully! Redirecting...",
+                            );
                         } else {
                             showError(result.error);
                         }
                     } catch (error) {
-                        showError('Account creation failed. Please try again.');
+                        showError("Account creation failed. Please try again.");
                     } finally {
                         createBtn.disabled = false;
-                        createBtn.textContent = 'Create Account';
+                        createBtn.textContent = "Create Account";
                     }
                 }
             </script>
 
             <div class="firebase-info">
-                🔥 Powered by Firebase Authentication<br>
+                🔥 Powered by Firebase Authentication<br />
                 Create an account or sign in with your email and password
             </div>
         </div>
