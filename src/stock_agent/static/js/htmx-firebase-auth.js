@@ -136,15 +136,6 @@ window.signInUser = async function (email, password) {
   }
 };
 
-window.createUserAccount = async function (email, password) {
-  try {
-    await createUserWithEmailAndPassword(firebaseAuth, email, password);
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: getReadableError(error) };
-  }
-};
-
 window.signOutUser = async function () {
   try {
     await signOut(firebaseAuth);
