@@ -1,6 +1,6 @@
 <div class="user-info">
     {% if user %}
         Welcome, {{ user.username }}!
-        <button onclick="signOutUser()" class="logout-btn">Logout</button>
+        <button data-logout class="logout-btn">Logout</button>
     {% endif %}
 </div>

@@ -119,7 +119,7 @@
                 "
             ></div>
 
-            <form id="loginForm" class="login-form">
+            <form id="login-form" class="login-form">
                 <div class="form-group">
                     <label for="email">Email:</label>
                     <input type="email" id="email" name="email" required />
@@ -135,10 +135,12 @@
                     />
                 </div>
 
-                <button type="button" onclick="handleLogin()" id="loginBtn">
-                    Login
+                <button type="submit" id="loginBtn">
+                    Sign In
                 </button>
             </form>
+
+            <div id="login-error" class="error" style="display: none;"></div>
 
             <div class="auth-content" style="display: none; text-align: center">
                 <h2>Welcome!</h2>
@@ -151,76 +153,9 @@
             <!-- HTMX Library -->
             <script src="https://unpkg.com/htmx.org@2.0.7"></script>
 
-            <script
-                type="module"
-                src="/static/js/htmx-firebase-auth.js"
-            ></script>
-            <script>
-                function showError(message) {
-                    const errorDiv = document.getElementById("error-message");
-                    const infoDiv = document.getElementById("info-message");
-                    if (errorDiv) {
-                        errorDiv.textContent = message;
-                        errorDiv.style.display = "block";
-                        if (infoDiv) infoDiv.style.display = "none";
-                    }
-                }
-
-                function showInfo(message) {
-                    const errorDiv = document.getElementById("error-message");
-                    const infoDiv = document.getElementById("info-message");
-                    if (infoDiv) {
-                        infoDiv.textContent = message;
-                        infoDiv.style.display = "block";
-                        if (errorDiv) errorDiv.style.display = "none";
-                    }
-                }
-
-                function clearMessages() {
-                    const errorDiv = document.getElementById("error-message");
-                    const infoDiv = document.getElementById("info-message");
-                    if (errorDiv) errorDiv.style.display = "none";
-                    if (infoDiv) infoDiv.style.display = "none";
-                }
-
-                async function handleLogin() {
-                    clearMessages();
-                    const email = document.getElementById("email").value;
-                    const password = document.getElementById("password").value;
-                    const loginBtn = document.getElementById("loginBtn");
-
-                    if (!email || !password) {
-                        showError("Please enter email and password.");
-                        return;
-                    }
-
-                    let loginSuccess = false;
-                    try {
-                        loginBtn.disabled = true;
-                        loginBtn.textContent = "Signing in...";
-                        showInfo("Signing in...");
-
-                        const result = await window.signInUser(email, password);
-                        if (result.success) {
-                            loginSuccess = true;
-                            showInfo("Login successful! Redirecting...");
-                            // Add a small delay to allow Firebase auth state to update, then redirect
-                            setTimeout(() => {
-                                window.location.href = "/";
-                            }, 1000);
-                        } else {
-                            showError(result.error);
-                        }
-                    } catch (error) {
-                        showError("Login failed. Please try again.");
-                    } finally {
-                        if (!loginSuccess) {
-                            loginBtn.disabled = false;
-                            loginBtn.textContent = "Login";
-                        }
-                    }
-                }
-            </script>
+            <!-- Firebase Authentication -->
+            <script type="module" src="/static/js/firebase-auth.js"></script>
+            <script type="module" src="/static/js/firebase-messaging-sw.js"></script>
         </div>
     </body>
 </html>
