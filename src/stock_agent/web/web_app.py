@@ -22,45 +22,41 @@ def create_web_app() -> Robyn:
     stock_service = StockService()
 
     def get_current_user(request: Request) -> Optional[User]:
-        """Get current user from session cookie"""
-        # Parse cookies from Cookie header
+        """Get current user from Firebase ID token"""
+        # Try Authorization header first (for API calls)
+        auth_header = request.headers.get('authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            id_token = auth_header[7:]  # Remove 'Bearer ' prefix
+            return firebase_auth_service.get_user_from_firebase_token(id_token)
+        
+        # Try cookie for web requests
         cookie_header = request.headers.get('cookie')
-        session_token = None
-
         if cookie_header:
-            # Parse cookies manually since Robyn doesn't have request.cookies
             cookies = {}
             for cookie in cookie_header.split(';'):
                 if '=' in cookie:
                     key, value = cookie.strip().split('=', 1)
                     cookies[key] = value
-            session_token = cookies.get('session_token')
-
-        if session_token:
-            return auth_service.get_user_from_session(session_token)
-        return None
-
-    def get_user_from_firebase_token(request: Request) -> Optional[User]:
-        """Get user from Firebase ID token in Authorization header"""
-        auth_header = request.headers.get('authorization')
-        if auth_header and auth_header.startswith('Bearer '):
-            id_token = auth_header[7:]  # Remove 'Bearer ' prefix
-            return firebase_auth_service.get_user_from_firebase_token(id_token)
-        return None
-
-    def get_user_from_bearer_token(request: Request) -> Optional[User]:
-        """Get user from Bearer token in Authorization header (legacy support)"""
-        auth_header = request.headers.get('authorization')
-        if auth_header and auth_header.startswith('Bearer '):
-            session_token = auth_header[7:]  # Remove 'Bearer ' prefix
-            return auth_service.get_user_from_session(session_token)
+            
+            firebase_token = cookies.get('firebase_token')
+            if firebase_token:
+                return firebase_auth_service.get_user_from_firebase_token(firebase_token)
+        
         return None
 
     def require_auth(func):
-        """Decorator to require authentication"""
+        """Decorator to require Firebase authentication"""
         def wrapper(request: Request):
             user = get_current_user(request)
             if not user:
+                # For API requests, return 401
+                if request.url.path.startswith('/api/'):
+                    return Response(
+                        status_code=401,
+                        description='{"error": "Authentication required"}',
+                        headers={"Content-Type": "application/json"}
+                    )
+                # For web requests, redirect to login
                 response = Response(
                     status_code=302,
                     description="",
@@ -111,59 +107,56 @@ def create_web_app() -> Robyn:
         import json
 
         try:
-            # Parse JSON body
+            # Parse JSON body for Firebase ID token
             if isinstance(request.body, bytes):
                 body_str = request.body.decode('utf-8')
             else:
                 body_str = request.body
 
             data = json.loads(body_str)
-            username = data.get('username', '')
-            password = data.get('password', '')
+            firebase_token = data.get('firebase_token', '')
+            
+            if not firebase_token:
+                return Response(
+                    status_code=400,
+                    description='{"error": "Firebase token required"}',
+                    headers={"Content-Type": "application/json"}
+                )
+            
+            # Verify Firebase token and get/create user
+            user = firebase_auth_service.get_user_from_firebase_token(firebase_token)
+            
+            if user:
+                return Response(
+                    status_code=200,
+                    description='{"success": true}',
+                    headers={
+                        "Content-Type": "application/json",
+                        "Set-Cookie": f'firebase_token={firebase_token}; Path=/; HttpOnly; SameSite=Strict'
+                    }
+                )
+            else:
+                return Response(
+                    status_code=401,
+                    description='{"error": "Invalid Firebase token"}',
+                    headers={"Content-Type": "application/json"}
+                )
+                
         except (json.JSONDecodeError, AttributeError) as e:
-            template = jinja_template.render_template("login.html", error="Invalid request format")
-            return template
-
-        user = auth_service.authenticate_user(username, password)
-
-        if user:
-            session_token = auth_service.create_session(user)
             return Response(
-                status_code=302,
-                description="",
-                headers={
-                    "Location": "/",
-                    "Set-Cookie": f'session_token={session_token}; Path=/; HttpOnly'
-                }
+                status_code=400,
+                description='{"error": "Invalid request format"}',
+                headers={"Content-Type": "application/json"}
             )
-        else:
-            template = jinja_template.render_template("login.html", error="Invalid credentials")
-            return template
-
 
     @app.post("/logout")
     async def logout(request: Request):
-        # Parse cookies from Cookie header
-        cookie_header = request.headers.get('cookie')
-        session_token = None
-
-        if cookie_header:
-            cookies = {}
-            for cookie in cookie_header.split(';'):
-                if '=' in cookie:
-                    key, value = cookie.strip().split('=', 1)
-                    cookies[key] = value
-            session_token = cookies.get('session_token')
-
-        if session_token:
-            auth_service.logout(session_token)
-
         return Response(
             status_code=302,
             description="",
             headers={
                 "Location": "/login",
-                "Set-Cookie": "session_token=; Path=/; HttpOnly; Max-Age=0"
+                "Set-Cookie": "firebase_token=; Path=/; HttpOnly; Max-Age=0"
             }
         )
 
@@ -212,24 +205,22 @@ def create_web_app() -> Robyn:
     # API routes - require Firebase authentication
     @app.get('/api/vapid-public-key')
     def get_vapid_public_key(request: Request):
-        # Check for Firebase ID token first, fallback to legacy session token
-        user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
+        user = get_current_user(request)
         if not user:
             return Response(
                 status_code=401,
-                description="Unauthorized - Valid Firebase ID token required",
+                description='{"error": "Authentication required"}',
                 headers={"Content-Type": "application/json"}
             )
         return {'vapidPublicKey': os.getenv('FIREBASE_VAPID_PUBLIC_KEY')}
 
     @app.get('/api/firebase-config')
     async def get_firebase_config(request: Request):
-        # Check for Firebase ID token first, fallback to legacy session token
-        user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
+        user = get_current_user(request)
         if not user:
             return Response(
                 status_code=401,
-                description="Unauthorized - Valid Firebase ID token required",
+                description='{"error": "Authentication required"}',
                 headers={"Content-Type": "application/json"}
             )
 
@@ -257,7 +248,7 @@ def create_web_app() -> Robyn:
     @app.get('/api/auth/status')
     async def get_auth_status(request: Request):
         """HTMX-friendly endpoint to check authentication status"""
-        user = get_user_from_firebase_token(request)
+        user = get_current_user(request)
         if user:
             return {
                 'authenticated': True,
@@ -272,7 +263,7 @@ def create_web_app() -> Robyn:
     @app.get('/api/auth/user-info')
     async def get_user_info(request: Request):
         """Get current user info for HTMX updates"""
-        user = get_user_from_firebase_token(request)
+        user = get_current_user(request)
         if not user:
             return Response(
                 status_code=401,
@@ -297,7 +288,7 @@ def create_web_app() -> Robyn:
 
     @app.get('/api/search-stocks')
     async def search_stocks(request: Request):
-        user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
+        user = get_current_user(request)
         if not user:
             template = jinja_template.render_template("fragments/error.html", message="Please sign in to search stocks")
             return template
@@ -321,13 +312,16 @@ def create_web_app() -> Robyn:
             )
             return template
         except Exception as e:
-            error_message = str(e) if "rate limit" in str(e).lower() else "Search failed. Please try again."
+            if "rate limit" in str(e).lower():
+                error_message = "🐎 Whoa there, cowboy! Slow down on those stock searches. Our data provider needs a breather!"
+            else:
+                error_message = "Search failed. Please try again."
             template = jinja_template.render_template("fragments/error.html", message=error_message)
             return template
 
     @app.get('/api/favorites')
     async def get_favorites(request: Request):
-        user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
+        user = get_current_user(request)
         if not user:
             template = jinja_template.render_template("fragments/error.html", message="Please sign in to view favorites")
             return template
@@ -342,7 +336,7 @@ def create_web_app() -> Robyn:
 
     @app.post('/api/favorites')
     async def add_favorite(request: Request):
-        user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
+        user = get_current_user(request)
         if not user:
             template = jinja_template.render_template("fragments/error.html", message="Please sign in to add favorites")
             return template
@@ -383,7 +377,7 @@ def create_web_app() -> Robyn:
 
     @app.delete('/api/favorites')
     async def remove_favorite(request: Request):
-        user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
+        user = get_current_user(request)
         if not user:
             template = jinja_template.render_template("fragments/error.html", message="Please sign in to remove favorites")
             return template
@@ -412,7 +406,7 @@ def create_web_app() -> Robyn:
 
     @app.get('/api/dashboard-favorites')
     async def get_dashboard_favorites(request: Request):
-        user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
+        user = get_current_user(request)
         if not user:
             return jinja_template.render_template("fragments/error.html", message="Unauthorized")
 
@@ -440,12 +434,15 @@ def create_web_app() -> Robyn:
 
             return jinja_template.render_template("fragments/dashboard_favorites.html", favorites=favorites_data)
         except Exception as e:
-            error_message = str(e) if "rate limit" in str(e).lower() else "Failed to load dashboard data. Please try again."
+            if "rate limit" in str(e).lower():
+                error_message = "📊 Easy there, speed racer! Your portfolio is popular, but our data feed needs a coffee break. Try again in a moment!"
+            else:
+                error_message = "Failed to load dashboard data. Please try again."
             return jinja_template.render_template("fragments/error.html", message=error_message)
 
     @app.get('/api/major-indexes')
     async def get_major_indexes(request: Request):
-        user = get_user_from_firebase_token(request) or get_current_user(request) or get_user_from_bearer_token(request)
+        user = get_current_user(request)
         if not user:
             return jinja_template.render_template("fragments/error.html", message="Unauthorized")
 
@@ -466,7 +463,10 @@ def create_web_app() -> Robyn:
 
             return jinja_template.render_template("fragments/major_indexes.html", indexes=indexes_data)
         except Exception as e:
-            error_message = str(e) if "rate limit" in str(e).lower() else "Failed to load index data. Please try again."
+            if "rate limit" in str(e).lower():
+                error_message = "📈 Hold your horses! The market indexes are taking a quick power nap. Even Wall Street needs a breather sometimes!"
+            else:
+                error_message = "Failed to load index data. Please try again."
             return jinja_template.render_template("fragments/error.html", message=error_message)
 
     return app

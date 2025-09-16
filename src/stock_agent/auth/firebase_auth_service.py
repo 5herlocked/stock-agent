@@ -104,45 +104,23 @@ class FirebaseAuthService:
     
     def _find_user_by_email(self, email: str) -> Optional[User]:
         """Find user by email in local database"""
-        import sqlite3
-        
-        try:
-            with sqlite3.connect(self.auth_service.db_path) as conn:
-                cursor = conn.execute(
-                    "SELECT id, username, email, password_hash, created_at, is_active "
-                    "FROM users WHERE email = ? AND is_active = 1",
-                    (email,)
-                )
-                row = cursor.fetchone()
-                
-                if row:
-                    return User(
-                        id=row[0],
-                        username=row[1],
-                        email=row[2],
-                        password_hash=row[3],
-                        created_at=datetime.fromisoformat(row[4]) if row[4] else None,
-                        is_active=bool(row[5])
-                    )
-        except Exception as e:
-            print(f"Error finding user by email: {e}")
-        
-        return None
+        return self.auth_service.get_user_by_email(email)
     
     def _create_user_from_firebase(self, firebase_claims: Dict[str, Any]) -> Optional[User]:
         """Create new user from Firebase claims"""
         try:
             email = firebase_claims['email']
+            firebase_uid = firebase_claims['uid']
             name = firebase_claims.get('name', '')
             
             # Generate username from email or name
             username = self._generate_username(email, name)
             
-            # Create user with a placeholder password (Firebase handles auth)
-            user = self.auth_service.register_user(
+            # Create user with Firebase UID
+            user = self.auth_service.create_user_from_firebase(
                 username=username,
                 email=email,
-                password="firebase_managed_auth"  # Placeholder - not used for Firebase users
+                firebase_uid=firebase_uid
             )
             
             if user:

@@ -2,51 +2,25 @@
 """
 Stock Agent Admin CLI Tool
 
-This tool allows administrators to manage users in the stock agent system.
+This tool allows administrators to view users and test notifications.
+Users are automatically created via Firebase authentication.
 """
 
 import argparse
-import getpass
 import sys
-from typing import Optional
 
 from ..auth import AuthService
 from ..notification_service import NotificationService, StockAlert
 
 
-def create_user(auth_service: AuthService, username: str, email: str, password: Optional[str] = None) -> bool:
-    """Create a new user"""
-    if not password:
-        password = getpass.getpass("Enter password for new user: ")
-        confirm_password = getpass.getpass("Confirm password: ")
-
-        if password != confirm_password:
-            print("❌ Passwords do not match!")
-            return False
-
-    try:
-        user = auth_service.register_user(username, email, password)
-        if user:
-            print(f"✅ User '{username}' created successfully!")
-            print(f"   Email: {email}")
-            print(f"   User ID: {user.id}")
-            return True
-        else:
-            print(f"❌ Failed to create user '{username}' - username or email already exists")
-            return False
-    except ValueError as e:
-        print(f"❌ Error creating user: {e}")
-        return False
-
-
 def list_users(auth_service: AuthService):
-    """List all users in the system"""
+    """List all users in the system (Firebase-authenticated users)"""
     import sqlite3
 
     try:
         with sqlite3.connect(auth_service.db_path) as conn:
             cursor = conn.execute("""
-                SELECT id, username, email, created_at, is_active
+                SELECT id, username, email, firebase_uid, created_at, is_active
                 FROM users
                 ORDER BY created_at DESC
             """)
@@ -54,108 +28,30 @@ def list_users(auth_service: AuthService):
 
             if not users:
                 print("No users found in the system.")
+                print("Users are automatically created when they authenticate via Firebase.")
                 return
 
-            print("\n📋 User List:")
-            print("-" * 80)
-            print(f"{'ID':<4} {'Username':<20} {'Email':<30} {'Created':<20} {'Active':<6}")
-            print("-" * 80)
+            print("\n📋 User List (Firebase-authenticated users):")
+            print("-" * 100)
+            print(f"{'ID':<4} {'Username':<20} {'Email':<30} {'Firebase UID':<20} {'Created':<20} {'Active':<6}")
+            print("-" * 100)
 
             for user in users:
-                user_id, username, email, created_at, is_active = user
+                user_id, username, email, firebase_uid, created_at, is_active = user
                 status = "✅" if is_active else "❌"
                 created_str = created_at[:19] if created_at else "Unknown"
-                print(f"{user_id:<4} {username:<20} {email:<30} {created_str:<20} {status:<6}")
+                firebase_uid_short = firebase_uid[:18] + "..." if firebase_uid and len(firebase_uid) > 20 else firebase_uid or "None"
+                print(f"{user_id:<4} {username:<20} {email:<30} {firebase_uid_short:<20} {created_str:<20} {status:<6}")
 
-            print("-" * 80)
+            print("-" * 100)
             print(f"Total users: {len(users)}")
+            print("Note: Users are automatically created via Firebase authentication")
 
     except Exception as e:
         print(f"❌ Error listing users: {e}")
 
 
-def deactivate_user(auth_service: AuthService, username: str) -> bool:
-    """Deactivate a user account"""
-    import sqlite3
 
-    try:
-        with sqlite3.connect(auth_service.db_path) as conn:
-            cursor = conn.execute("SELECT id FROM users WHERE username = ?", (username,))
-            user = cursor.fetchone()
-
-            if not user:
-                print(f"❌ User '{username}' not found")
-                return False
-
-            conn.execute("UPDATE users SET is_active = 0 WHERE username = ?", (username,))
-            conn.commit()
-
-            print(f"✅ User '{username}' has been deactivated")
-            return True
-
-    except Exception as e:
-        print(f"❌ Error deactivating user: {e}")
-        return False
-
-
-def activate_user(auth_service: AuthService, username: str) -> bool:
-    """Activate a user account"""
-    import sqlite3
-
-    try:
-        with sqlite3.connect(auth_service.db_path) as conn:
-            cursor = conn.execute("SELECT id FROM users WHERE username = ?", (username,))
-            user = cursor.fetchone()
-
-            if not user:
-                print(f"❌ User '{username}' not found")
-                return False
-
-            conn.execute("UPDATE users SET is_active = 1 WHERE username = ?", (username,))
-            conn.commit()
-
-            print(f"✅ User '{username}' has been activated")
-            return True
-
-    except Exception as e:
-        print(f"❌ Error activating user: {e}")
-        return False
-
-
-def reset_password(auth_service: AuthService, username: str) -> bool:
-    """Reset a user's password"""
-    import sqlite3
-
-    try:
-        with sqlite3.connect(auth_service.db_path) as conn:
-            cursor = conn.execute("SELECT id FROM users WHERE username = ?", (username,))
-            user = cursor.fetchone()
-
-            if not user:
-                print(f"❌ User '{username}' not found")
-                return False
-
-            new_password = getpass.getpass(f"Enter new password for '{username}': ")
-            confirm_password = getpass.getpass("Confirm new password: ")
-
-            if new_password != confirm_password:
-                print("❌ Passwords do not match!")
-                return False
-
-            if len(new_password) < 8:
-                print("❌ Password must be at least 8 characters long")
-                return False
-
-            password_hash = auth_service._hash_password(new_password)
-            conn.execute("UPDATE users SET password_hash = ? WHERE username = ?", (password_hash, username))
-            conn.commit()
-
-            print(f"✅ Password reset successfully for user '{username}'")
-            return True
-
-    except Exception as e:
-        print(f"❌ Error resetting password: {e}")
-        return False
 
 
 def test_notification(topic: str = "stock_alerts", ticker: str = "AAPL") -> bool:
@@ -254,29 +150,13 @@ Examples:
     # Initialize auth service
     auth_service = AuthService(db_path=args.db_path)
 
-    print(f"🔧 Stock Agent Admin Tool")
+    print(f"🔧 Stock Agent Admin Tool (Firebase Auth)")
     print(f"📁 Database: {args.db_path}")
     print()
 
     # Execute commands
-    if args.command == 'create-user':
-        success = create_user(auth_service, args.username, args.email, args.password)
-        sys.exit(0 if success else 1)
-
-    elif args.command == 'list-users':
+    if args.command == 'list-users':
         list_users(auth_service)
-
-    elif args.command == 'deactivate-user':
-        success = deactivate_user(auth_service, args.username)
-        sys.exit(0 if success else 1)
-
-    elif args.command == 'activate-user':
-        success = activate_user(auth_service, args.username)
-        sys.exit(0 if success else 1)
-
-    elif args.command == 'reset-password':
-        success = reset_password(auth_service, args.username)
-        sys.exit(0 if success else 1)
 
     elif args.command == 'test-notification':
         success = test_notification(args.topic, args.ticker)

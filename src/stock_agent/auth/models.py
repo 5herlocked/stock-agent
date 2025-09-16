@@ -7,7 +7,7 @@ class User:
     id: Optional[int] = None
     username: str = ""
     email: str = ""
-    password_hash: str = ""
+    firebase_uid: Optional[str] = None
     created_at: Optional[datetime] = None
     is_active: bool = True
 
