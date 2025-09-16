@@ -45,6 +45,9 @@ class FirebaseAuthManager {
             // Configure HTMX for authenticated requests
             this.configureHTMXAuth();
 
+            // Register service worker for messaging
+            this.registerServiceWorker();
+
             this.initialized = true;
             console.log('Firebase Auth initialized successfully');
             return true;
@@ -191,26 +194,6 @@ class FirebaseAuthManager {
     }
 
     /**
-     * Create account with email and password
-     */
-    async createAccount(email, password, displayName = null) {
-        try {
-            const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
-            
-            // Update display name if provided
-            if (displayName) {
-                await updateProfile(userCredential.user, { displayName });
-            }
-            
-            console.log('Account created successfully:', userCredential.user.email);
-            return { success: true, user: userCredential.user };
-        } catch (error) {
-            console.error('Account creation failed:', error);
-            return { success: false, error: this.getReadableError(error) };
-        }
-    }
-
-    /**
      * Sign out current user
      */
     async signOut() {
@@ -250,6 +233,25 @@ class FirebaseAuthManager {
      */
     getCurrentUser() {
         return this.currentUser;
+    }
+
+    /**
+     * Register service worker for Firebase messaging
+     */
+    async registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            try {
+                const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+                console.log('Service worker registered successfully:', registration);
+                return registration;
+            } catch (error) {
+                console.error('Service worker registration failed:', error);
+                return null;
+            }
+        } else {
+            console.warn('Service workers not supported in this browser');
+            return null;
+        }
     }
 
     /**
@@ -356,6 +358,8 @@ document.addEventListener('click', async (e) => {
         }
     }
 });
+
+
 
 // Export for use in other scripts
 export default FirebaseAuthManager;
