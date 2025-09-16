@@ -241,7 +241,7 @@ class FirebaseAuthManager {
     async registerServiceWorker() {
         if ('serviceWorker' in navigator) {
             try {
-                const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+                const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
                 console.log('Service worker registered successfully:', registration);
                 return registration;
             } catch (error) {
