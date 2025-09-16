@@ -1,8 +1,9 @@
 /**
- * Firebase Authentication Module for Stock Agent
- * Handles Firebase Auth integration and service worker communication
+ * Firebase Authentication with HTMX Integration
+ * Service worker handles its own Firebase Auth independently
  */
 
+// Firebase imports using CDN
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
 import { 
     getAuth, 
@@ -18,7 +19,7 @@ class FirebaseAuthManager {
         this.app = null;
         this.auth = null;
         this.currentUser = null;
-        this.serviceWorkerRegistration = null;
+        this.currentIdToken = null;
         this.initialized = false;
     }
 
@@ -30,103 +31,182 @@ class FirebaseAuthManager {
             // Get Firebase config from server
             const response = await fetch('/api/firebase-config-public');
             if (!response.ok) {
-                throw new Error('Failed to load Firebase config');
+                throw new Error(`Failed to fetch Firebase config: ${response.status}`);
             }
-            
             const firebaseConfig = await response.json();
-            
+
             // Initialize Firebase
             this.app = initializeApp(firebaseConfig);
             this.auth = getAuth(this.app);
-            
+
             // Set up auth state listener
-            onAuthStateChanged(this.auth, (user) => {
-                this.currentUser = user;
-                this.handleAuthStateChange(user);
-            });
-            
-            // Register service worker
-            await this.registerServiceWorker();
-            
+            this.setupAuthStateListener();
+
+            // Configure HTMX for authenticated requests
+            this.configureHTMXAuth();
+
             this.initialized = true;
             console.log('Firebase Auth initialized successfully');
-            
+            return true;
         } catch (error) {
             console.error('Failed to initialize Firebase Auth:', error);
-            throw error;
+            return false;
         }
     }
 
     /**
-     * Register Firebase Auth service worker
+     * Set up Firebase auth state listener
      */
-    async registerServiceWorker() {
-        if ('serviceWorker' in navigator) {
-            try {
-                this.serviceWorkerRegistration = await navigator.serviceWorker.register('/firebase-auth-sw.js');
-                console.log('Firebase Auth Service Worker registered successfully');
-                
-                // Wait for service worker to be ready
-                await navigator.serviceWorker.ready;
-                
-            } catch (error) {
-                console.error('Service Worker registration failed:', error);
+    setupAuthStateListener() {
+        onAuthStateChanged(this.auth, async (user) => {
+            this.currentUser = user;
+            
+            if (user) {
+                // User is signed in - get fresh ID token
+                try {
+                    this.currentIdToken = await user.getIdToken();
+                    
+                    // Store token in cookie for server-side access
+                    this.setTokenCookie(this.currentIdToken);
+                    
+                    console.log('User signed in:', user.email);
+                    
+                } catch (error) {
+                    console.error('Failed to get ID token:', error);
+                }
+            } else {
+                // User is signed out
+                this.currentIdToken = null;
+                this.clearTokenCookie();
+                console.log('User signed out');
             }
-        }
+
+            // Handle page redirects
+            this.handleAuthStateChange(user);
+        });
     }
 
     /**
      * Handle authentication state changes
      */
     handleAuthStateChange(user) {
-        if (user) {
-            console.log('User signed in:', user.email);
-            this.updateUIForSignedInUser(user);
-            
-            // If on login page and user is authenticated, redirect to dashboard
-            if (window.location.pathname === '/login') {
-                console.log('User authenticated on login page, redirecting to dashboard');
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 500);
+        const isAuthenticated = !!user;
+        
+        // Trigger custom event for other components
+        const authEvent = new CustomEvent('auth-state-changed', {
+            detail: { 
+                authenticated: isAuthenticated,
+                user: user ? {
+                    email: user.email,
+                    displayName: user.displayName,
+                    uid: user.uid
+                } : null
             }
-        } else {
-            console.log('User signed out');
-            this.updateUIForSignedOutUser();
+        });
+        document.dispatchEvent(authEvent);
+
+        // Handle page redirects
+        if (!isAuthenticated && this.isProtectedPage()) {
+            window.location.href = '/login';
+        } else if (isAuthenticated && window.location.pathname === '/login') {
+            window.location.href = '/';
         }
+    }
+
+    /**
+     * Check if current page requires authentication
+     */
+    isProtectedPage() {
+        const protectedPaths = ['/', '/stocks', '/report', '/notifications'];
+        return protectedPaths.includes(window.location.pathname);
+    }
+
+    /**
+     * Set Firebase token as cookie for server access
+     */
+    setTokenCookie(token) {
+        document.cookie = `firebase_token=${token}; Path=/; SameSite=Strict; Secure=${location.protocol === 'https:'}`;
+    }
+
+    /**
+     * Clear Firebase token cookie
+     */
+    clearTokenCookie() {
+        document.cookie = 'firebase_token=; Path=/; Max-Age=0';
+    }
+
+
+
+    /**
+     * Configure HTMX for authentication error handling
+     * Note: Service worker automatically adds Authorization headers
+     */
+    configureHTMXAuth() {
+        if (!window.htmx) {
+            console.warn('HTMX not loaded');
+            return;
+        }
+
+        // Handle auth errors from HTMX requests
+        document.body.addEventListener('htmx:responseError', (event) => {
+            if (event.detail.xhr.status === 401) {
+                console.log('Authentication required, refreshing token');
+                this.handleAuthError();
+            }
+        });
+    }
+
+    /**
+     * Handle authentication errors - try to refresh token
+     */
+    async handleAuthError() {
+        try {
+            if (this.currentUser) {
+                // Try to refresh the token
+                this.currentIdToken = await this.currentUser.getIdToken(true);
+                this.setTokenCookie(this.currentIdToken);
+                console.log('Token refreshed successfully');
+                return;
+            }
+        } catch (error) {
+            console.error('Failed to refresh token:', error);
+        }
+
+        // If refresh fails, sign out
+        await this.signOut();
     }
 
     /**
      * Sign in with email and password
      */
-    async signIn(email, password) {
+    async signInWithEmail(email, password) {
         try {
             const userCredential = await signInWithEmailAndPassword(this.auth, email, password);
-            return userCredential.user;
+            console.log('Sign in successful:', userCredential.user.email);
+            return { success: true, user: userCredential.user };
         } catch (error) {
-            console.error('Sign in error:', error);
-            throw this.getReadableError(error);
+            console.error('Sign in failed:', error);
+            return { success: false, error: this.getReadableError(error) };
         }
     }
 
     /**
      * Create account with email and password
      */
-    async createAccount(email, password, displayName = '') {
+    async createAccount(email, password, displayName = null) {
         try {
             const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
             
             // Update display name if provided
             if (displayName) {
-                await updateProfile(userCredential.user, {
-                    displayName: displayName
-                });
+                await updateProfile(userCredential.user, { displayName });
             }
             
-            return userCredential.user;
+            console.log('Account created successfully:', userCredential.user.email);
+            return { success: true, user: userCredential.user };
         } catch (error) {
-            console.error('Account creation error:', error);
-            throw this.getReadableError(error);
+            console.error('Account creation failed:', error);
+            return { success: false, error: this.getReadableError(error) };
         }
     }
 
@@ -136,54 +216,33 @@ class FirebaseAuthManager {
     async signOut() {
         try {
             await signOut(this.auth);
+            console.log('Sign out successful');
+            return { success: true };
         } catch (error) {
-            console.error('Sign out error:', error);
-            throw error;
+            console.error('Sign out failed:', error);
+            return { success: false, error: error.message };
         }
     }
 
     /**
-     * Get current user's ID token
+     * Get current Firebase ID token
      */
-    async getIdToken() {
-        if (this.currentUser) {
-            try {
-                return await this.currentUser.getIdToken();
-            } catch (error) {
-                console.error('Error getting ID token:', error);
-                return null;
-            }
+    async getCurrentToken() {
+        if (!this.currentUser) return null;
+        
+        try {
+            return await this.currentUser.getIdToken();
+        } catch (error) {
+            console.error('Failed to get current token:', error);
+            return null;
         }
-        return null;
     }
 
     /**
-     * Check if user is signed in
+     * Check if user is currently authenticated
      */
-    isSignedIn() {
-        return this.currentUser !== null && this.initialized;
-    }
-
-    /**
-     * Wait for authentication to be ready
-     */
-    async waitForAuth() {
-        return new Promise((resolve) => {
-            if (this.initialized) {
-                resolve(this.currentUser);
-                return;
-            }
-            
-            // Wait for initialization
-            const checkAuth = () => {
-                if (this.initialized) {
-                    resolve(this.currentUser);
-                } else {
-                    setTimeout(checkAuth, 100);
-                }
-            };
-            checkAuth();
-        });
+    isAuthenticated() {
+        return !!this.currentUser;
     }
 
     /**
@@ -191,58 +250,6 @@ class FirebaseAuthManager {
      */
     getCurrentUser() {
         return this.currentUser;
-    }
-
-    /**
-     * Update UI for signed in user
-     */
-    updateUIForSignedInUser(user) {
-        // Update user info display
-        const userInfoElements = document.querySelectorAll('.user-info');
-        userInfoElements.forEach(element => {
-            const displayName = user.displayName || user.email.split('@')[0];
-            element.innerHTML = `
-                Welcome, ${displayName}!
-                <button onclick="firebaseAuth.signOut()" class="logout-btn">Logout</button>
-            `;
-        });
-
-        // Hide login forms
-        const loginForms = document.querySelectorAll('.login-form');
-        loginForms.forEach(form => form.style.display = 'none');
-
-        // Show authenticated content
-        const authContent = document.querySelectorAll('.auth-content');
-        authContent.forEach(content => content.style.display = 'block');
-
-        // Update page title if on login page
-        if (window.location.pathname === '/login') {
-            document.title = 'Welcome - Stock Agent';
-        }
-    }
-
-    /**
-     * Update UI for signed out user
-     */
-    updateUIForSignedOutUser() {
-        // Clear user info
-        const userInfoElements = document.querySelectorAll('.user-info');
-        userInfoElements.forEach(element => {
-            element.innerHTML = '';
-        });
-
-        // Show login forms
-        const loginForms = document.querySelectorAll('.login-form');
-        loginForms.forEach(form => form.style.display = 'block');
-
-        // Hide authenticated content
-        const authContent = document.querySelectorAll('.auth-content');
-        authContent.forEach(content => content.style.display = 'none');
-
-        // Redirect to login if on protected page
-        if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
-            window.location.href = '/login';
-        }
     }
 
     /**
@@ -266,43 +273,89 @@ class FirebaseAuthManager {
                 return error.message || 'An error occurred during authentication.';
         }
     }
-
-    /**
-     * Make authenticated API request
-     */
-    async makeAuthenticatedRequest(url, options = {}) {
-        const idToken = await this.getIdToken();
-        
-        if (!idToken) {
-            throw new Error('No authentication token available');
-        }
-
-        const headers = {
-            'Authorization': `Bearer ${idToken}`,
-            'Content-Type': 'application/json',
-            ...options.headers
-        };
-
-        return fetch(url, {
-            ...options,
-            headers
-        });
-    }
 }
 
 // Create global instance
 window.firebaseAuth = new FirebaseAuthManager();
 
-// Auto-initialize when DOM is loaded
+// Auto-initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        await window.firebaseAuth.initialize();
-    } catch (error) {
-        console.error('Failed to initialize Firebase Auth:', error);
-        // Fallback to legacy authentication if Firebase fails
-        console.log('Falling back to legacy authentication');
+    await window.firebaseAuth.initialize();
+});
+
+// Login form handler
+document.addEventListener('DOMContentLoaded', () => {
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const submitButton = loginForm.querySelector('button[type="submit"]');
+            const errorDiv = document.getElementById('login-error');
+            
+            // Show loading state
+            submitButton.disabled = true;
+            submitButton.textContent = 'Signing in...';
+            if (errorDiv) errorDiv.style.display = 'none';
+            
+            try {
+                const result = await window.firebaseAuth.signInWithEmail(email, password);
+                
+                if (result.success) {
+                    // Send token to server for session creation
+                    const token = await window.firebaseAuth.getCurrentToken();
+                    const response = await fetch('/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ firebase_token: token })
+                    });
+                    
+                    if (response.ok) {
+                        console.log('Login successful');
+                        // Redirect will happen automatically via auth state listener
+                    } else {
+                        throw new Error('Server authentication failed');
+                    }
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                if (errorDiv) {
+                    errorDiv.textContent = error.message || 'Login failed. Please try again.';
+                    errorDiv.style.display = 'block';
+                }
+            } finally {
+                // Reset button state
+                submitButton.disabled = false;
+                submitButton.textContent = 'Sign In';
+            }
+        });
     }
 });
 
-// Export for module usage
+// Logout handler
+document.addEventListener('click', async (e) => {
+    if (e.target.matches('[data-logout]')) {
+        e.preventDefault();
+        
+        try {
+            await window.firebaseAuth.signOut();
+            
+            // Also notify server
+            await fetch('/logout', { method: 'POST' });
+            
+            // Redirect to login
+            window.location.href = '/login';
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
+    }
+});
+
+// Export for use in other scripts
 export default FirebaseAuthManager;

@@ -1,109 +1,46 @@
-// Enhanced Firebase Configuration Service Worker with Authentication Support
+// Firebase Service Worker with Authentication and Messaging
+// Implements Firebase service worker sessions pattern
 
-let sessionToken = null;
-let firebaseConfig = null;
+let firebaseApp = null;
+let firebaseAuth = null;
 let messaging = null;
+let firebaseConfig = null;
 
-// Listen for messages from the main thread (for session token updates)
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "UPDATE_SESSION_TOKEN") {
-    sessionToken = event.data.token;
-    console.log("Service worker received updated session token");
-
-    // If we don't have Firebase config yet, try to fetch it now that we have a token
-    if (!firebaseConfig && sessionToken) {
-      initializeMessaging();
-    }
-  } else if (event.data && event.data.type === "CLEAR_SESSION_TOKEN") {
-    sessionToken = null;
-    firebaseConfig = null;
-    messaging = null;
-    console.log("Service worker session token cleared");
-
-    // Clear stored session token from IndexedDB
-    clearStoredSessionToken().catch((error) => {
-      console.error(
-        "Failed to clear stored session token in service worker:",
-        error,
-      );
-    });
-  }
-});
-
-// Store session token in IndexedDB for persistence across service worker restarts
-async function storeSessionToken(token) {
-  try {
-    const db = await openDB();
-    const transaction = db.transaction(["auth"], "readwrite");
-    const store = transaction.objectStore("auth");
-    await store.put({ id: "session_token", value: token });
-    sessionToken = token;
-  } catch (error) {
-    console.error("Failed to store session token:", error);
-  }
-}
-
-// Retrieve session token from IndexedDB
-async function getStoredSessionToken() {
-  try {
-    const db = await openDB();
-    const transaction = db.transaction(["auth"], "readonly");
-    const store = transaction.objectStore("auth");
-    const result = await store.get("session_token");
-    return result?.value || null;
-  } catch (error) {
-    console.error("Failed to retrieve session token:", error);
-    return null;
-  }
-}
-
-// Open IndexedDB for token storage
-function openDB() {
+/**
+ * Returns a promise that resolves with an ID token if available.
+ * @return {!Promise<?string>} The promise that resolves with an ID token if
+ *     available. Otherwise, the promise resolves with null.
+ */
+const getIdTokenPromise = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open("StockAgentAuth", 1);
-
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
-
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      if (!db.objectStoreNames.contains("auth")) {
-        db.createObjectStore("auth", { keyPath: "id" });
+    if (!firebaseAuth) {
+      resolve(null);
+      return;
+    }
+    
+    const unsubscribe = firebaseAuth.onAuthStateChanged((user) => {
+      unsubscribe();
+      if (user) {
+        user.getIdToken().then((idToken) => {
+          resolve(idToken);
+        }, (error) => {
+          console.error('Error getting ID token:', error);
+          resolve(null);
+        });
+      } else {
+        resolve(null);
       }
-    };
+    });
   });
-}
+};
 
-// Fetch Firebase configuration from the server with authentication
+// Fetch Firebase configuration from the public endpoint
 async function fetchFirebaseConfig() {
   try {
-    // Try to get session token from memory first, then from IndexedDB
-    let token = sessionToken;
-    if (!token) {
-      token = await getStoredSessionToken();
-      sessionToken = token;
-    }
-
-    if (!token) {
-      throw new Error("No session token available for authentication");
-    }
-
-    const response = await fetch("/api/firebase-config", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
+    const response = await fetch("/api/firebase-config-public");
+    
     if (!response.ok) {
-      if (response.status === 401) {
-        // Token might be expired, clear it
-        sessionToken = null;
-        await clearStoredSessionToken();
-        throw new Error("Session token expired or invalid");
-      }
-      throw new Error(
-        `Failed to fetch Firebase configuration: ${response.status}`,
-      );
+      throw new Error(`Failed to fetch Firebase configuration: ${response.status}`);
     }
 
     const config = await response.json();
@@ -115,74 +52,50 @@ async function fetchFirebaseConfig() {
   }
 }
 
-// Clear stored session token
-async function clearStoredSessionToken() {
-  try {
-    const db = await openDB();
-    const transaction = db.transaction(["auth"], "readwrite");
-    const store = transaction.objectStore("auth");
-    await store.delete("session_token");
-  } catch (error) {
-    console.error("Failed to clear session token:", error);
-  }
-}
+// Helper functions for request processing
+const getOriginFromUrl = (url) => {
+  const pathArray = url.split('/');
+  const protocol = pathArray[0];
+  const host = pathArray[2];
+  return protocol + '//' + host;
+};
 
-// Fetch VAPID public key with authentication
-async function fetchVapidPublicKey() {
-  try {
-    let token = sessionToken;
-    if (!token) {
-      token = await getStoredSessionToken();
-      sessionToken = token;
-    }
-
-    if (!token) {
-      throw new Error("No session token available for authentication");
-    }
-
-    const response = await fetch("/api/vapid-public-key", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        sessionToken = null;
-        await clearStoredSessionToken();
-        throw new Error("Session token expired or invalid");
+// Get underlying body if available. Works for text and json bodies.
+const getBodyContent = (req) => {
+  return Promise.resolve().then(() => {
+    if (req.method !== 'GET') {
+      if (req.headers.get('Content-Type') && req.headers.get('Content-Type').indexOf('json') !== -1) {
+        return req.json()
+          .then((json) => {
+            return JSON.stringify(json);
+          });
+      } else {
+        return req.text();
       }
-      throw new Error(`Failed to fetch VAPID key: ${response.status}`);
     }
+  }).catch((error) => {
+    // Ignore error.
+  });
+};
 
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching VAPID public key:", error);
-    throw error;
-  }
-}
-
-// Initialize Firebase and handle messaging after config is loaded
-async function initializeMessaging() {
+// Initialize Firebase Auth and Messaging
+async function initializeFirebase() {
+    // Import Firebase scripts (compat version for service workers)
+  importScripts('https://www.gstatic.com/firebasejs/12.2.1/firebase-app-compat.js');
+  importScripts('https://www.gstatic.com/firebasejs/12.2.1/firebase-auth-compat.js');
+  importScripts('https://www.gstatic.com/firebasejs/12.2.1/firebase-messaging-compat.js');
   try {
-    // Import Firebase scripts dynamically
-    importScripts(
-      "https://www.gstatic.com/firebasejs/12.1.0/firebase-app-compat.js",
-    );
-    importScripts(
-      "https://www.gstatic.com/firebasejs/12.1.0/firebase-messaging-compat.js",
-    );
-
-    // Fetch configuration from server with authentication
+    // Fetch configuration from server
     if (!firebaseConfig) {
       firebaseConfig = await fetchFirebaseConfig();
     }
 
-    // Initialize Firebase with fetched config
-    firebase.initializeApp(firebaseConfig);
-
-    // Get messaging instance
-    messaging = firebase.messaging();
+    // Initialize Firebase with fetched config (only if not already initialized)
+    if (!firebaseApp) {
+      firebaseApp = firebase.initializeApp(firebaseConfig);
+      firebaseAuth = firebase.auth();
+      messaging = firebase.messaging();
+    }
 
     // Handle background messages
     messaging.onBackgroundMessage((payload) => {
@@ -235,46 +148,73 @@ async function initializeMessaging() {
       );
     });
 
-    console.log("Firebase messaging initialized successfully");
+    console.log("Firebase initialized successfully in service worker");
   } catch (error) {
-    console.error("Failed to initialize Firebase messaging:", error);
-
-    // If authentication failed, notify the main thread
-    if (error.message.includes("token") || error.message.includes("401")) {
-      // Broadcast to all clients that authentication is needed
-      clients.matchAll().then((clientList) => {
-        clientList.forEach((client) => {
-          client.postMessage({
-            type: "AUTH_REQUIRED",
-            message: "Service worker authentication failed",
-          });
-        });
-      });
-    }
+    console.error("Failed to initialize Firebase:", error);
   }
 }
+
+// Fetch event listener for automatic auth header injection
+self.addEventListener('fetch', (event) => {
+  const requestProcessor = (idToken) => {
+    let req = event.request;
+    let processRequestPromise = Promise.resolve();
+    
+    // For same origin https requests, append idToken to header.
+    if (self.location.origin == getOriginFromUrl(event.request.url) &&
+        (self.location.protocol == 'https:' ||
+         self.location.hostname == 'localhost') &&
+        idToken) {
+      // Clone headers as request headers are immutable.
+      const headers = new Headers();
+      req.headers.forEach((val, key) => {
+        headers.append(key, val);
+      });
+      // Add ID token to header.
+      headers.append('Authorization', 'Bearer ' + idToken);
+      
+      processRequestPromise = getBodyContent(req).then((body) => {
+        try {
+          req = new Request(req.url, {
+            method: req.method,
+            headers: headers,
+            mode: 'same-origin',
+            credentials: req.credentials,
+            cache: req.cache,
+            redirect: req.redirect,
+            referrer: req.referrer,
+            body,
+          });
+        } catch (e) {
+          // This will fail for CORS requests. We just continue with the
+          // fetch caching logic below and do not pass the ID token.
+        }
+      });
+    }
+    return processRequestPromise.then(() => {
+      return fetch(req);
+    });
+  };
+  
+  // Fetch the resource after checking for the ID token.
+  event.respondWith(getIdTokenPromise().then(requestProcessor, requestProcessor));
+});
 
 // Handle service worker activation
 self.addEventListener("activate", async (event) => {
   console.log("Service worker activated");
-
-  // Try to load existing session token
-  event.waitUntil(
-    (async () => {
-      const token = await getStoredSessionToken();
-      if (token) {
-        sessionToken = token;
-        // Try to initialize messaging with existing token
-        await initializeMessaging();
-      }
-    })(),
-  );
+  
+  // Initialize Firebase
+  event.waitUntil(initializeFirebase());
 });
 
 // Handle service worker installation
 self.addEventListener("install", (event) => {
   console.log("Service worker installed");
   self.skipWaiting();
+  
+  // Initialize Firebase on install
+  event.waitUntil(initializeFirebase());
 });
 
 // Handle push events (backup in case onBackgroundMessage doesn't work)
@@ -317,33 +257,13 @@ self.addEventListener("push", (event) => {
   }
 });
 
-// Periodic token refresh (optional - for long-running service workers)
-setInterval(async () => {
-  if (sessionToken) {
-    try {
-      // Test token validity with a simple API call
-      const response = await fetch("/api/vapid-public-key", {
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-        },
-      });
-
-      if (response.status === 401) {
-        // Token expired, clear it and notify clients
-        sessionToken = null;
-        await clearStoredSessionToken();
-
-        clients.matchAll().then((clientList) => {
-          clientList.forEach((client) => {
-            client.postMessage({
-              type: "AUTH_REQUIRED",
-              message: "Session token expired",
-            });
-          });
-        });
-      }
-    } catch (error) {
-      console.error("Token validation error:", error);
-    }
+// Listen for messages from main thread (for coordination if needed)
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "PING") {
+    // Respond to ping from main thread
+    event.ports[0].postMessage({
+      type: "PONG",
+      authenticated: !!firebaseAuth?.currentUser
+    });
   }
-}, 300000); // Check every 5 minutes
+});

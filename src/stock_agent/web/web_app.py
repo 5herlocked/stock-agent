@@ -69,8 +69,8 @@ def create_web_app() -> Robyn:
     # Static files
     @app.get("/firebase-messaging-sw.js")
     async def firebase_service_worker(request: Request):
-        # Serve the new Firebase auth service worker
-        return serve_file(os.path.join(src_path, "static", "js", "firebase-auth-sw.js"))
+        # Serve the Firebase messaging service worker
+        return serve_file(os.path.join(src_path, "static", "js", "firebase-messaging-sw.js"))
 
     @app.get("/firebase-auth-sw.js")
     async def firebase_auth_service_worker(request: Request):
@@ -171,17 +171,6 @@ def create_web_app() -> Robyn:
             "user": None  # Firebase auth will handle user info
         }
         template = jinja_template.render_template("dashboard.html", **context)
-        return template
-
-    @app.get("/notifications")
-    async def notifications_page(request: Request):
-        # Let Firebase auth handle authentication on the frontend
-        context = {
-            "framework": "Robyn",
-            "templating_engine": "Jinja2",
-            "user": None  # Firebase auth will handle user info
-        }
-        template = jinja_template.render_template("index.html", **context)
         return template
 
     @app.get('/report')
