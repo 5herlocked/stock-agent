@@ -53,6 +53,13 @@ Stock Agent is a secure, real-time stock market tracking and notification system
 - Users auto-created in local database when first authenticated via Firebase
 - No local password authentication - Firebase handles all auth flows
 
+### Service Worker Sessions Pattern
+- **Service worker independence**: Service worker initializes its own Firebase Auth instance
+- **Automatic header injection**: Service worker intercepts all same-origin requests and adds Authorization headers
+- **No token passing**: Main thread and service worker manage Firebase Auth independently
+- **Request interception**: All fetch requests to app origin automatically include Firebase ID tokens
+- **Follows Firebase recommendations**: Implements official Firebase service worker sessions pattern
+
 ### Database Schema
 - Users table: id, username, email, firebase_uid, created_at, is_active
 - User favorites table: id, user_id, ticker, company_name, added_at
@@ -131,6 +138,8 @@ Stock Agent is a secure, real-time stock market tracking and notification system
 - SQLite for development (consider PostgreSQL for production)
 - HTMX for frontend interactivity (no complex JavaScript framework)
 - User provisioning handled entirely by Firebase authentication flows
+- **Firebase service worker sessions**: Implements Firebase's recommended pattern where service worker independently manages Firebase Auth and automatically injects Authorization headers on all requests
+- **Clean JavaScript architecture**: Only 2 JS files - `firebase-auth.js` for main thread authentication and `firebase-messaging-sw.js` for service worker with auth + messaging
 
 ## Agent-Specific Instructions
 
@@ -140,7 +149,8 @@ Stock Agent is a secure, real-time stock market tracking and notification system
 - **IMPORTANT**: Firebase-only authentication - no local auth supported
 - Use `get_current_user()` for Firebase ID token authentication (handles both cookies and headers)
 - **NEVER** implement local password authentication or session management
-- **Note**: JavaScript files in `static/js/` still reference session tokens - these need updating for full Firebase integration
+- **Firebase service worker sessions**: Service worker independently manages Firebase Auth and automatically adds Authorization headers to all same-origin requests
+- **Clean Firebase integration**: Main thread handles UI authentication, service worker handles request authentication
 - Update related documentation when making significant changes
 - Reference `docs/agent/` files for detailed technical information
 
