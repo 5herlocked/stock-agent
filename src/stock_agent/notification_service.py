@@ -15,15 +15,19 @@ class StockAlert:
 
 class NotificationService:
     def __init__(self, creds_path: Optional[str] = None):
-        """Initialize Firebase with credentials"""
-        if not creds_path:
-            creds_path = os.getenv('FIREBASE_CREDS_PATH')
+        """Initialize Firebase with credentials if not already initialized"""
+        # Check if Firebase is already initialized
+        if not firebase_admin._apps:
+            if not creds_path:
+                creds_path = os.getenv('FIREBASE_CREDS_PATH')
 
-        if not creds_path:
-            raise ValueError("Firebase credentials path not provided")
+            if not creds_path:
+                raise ValueError("Firebase credentials path not provided")
 
-        cred = credentials.Certificate(creds_path)
-        firebase_admin.initialize_app(cred)
+            cred = credentials.Certificate(creds_path)
+            firebase_admin.initialize_app(cred)
+        else:
+            print("Firebase already initialized, reusing existing app")
 
     def send_notification_to_topic(self, topic: str, alert: StockAlert) -> bool:
         """Send a notification to all devices subscribed to a specific topic"""
@@ -46,6 +50,7 @@ class NotificationService:
             )
 
             response = messaging.send(message)
+            print(f"Response: {response}")
             return bool(response)
         except Exception as e:
             print(f"Error sending notification: {str(e)}")

@@ -8,6 +8,7 @@ from robyn.templating import JinjaTemplate
 from ..auth import AuthService, User
 from ..auth.firebase_auth_service import FirebaseAuthService
 from ..polygon.stock_service import StockService
+from ..notification_service import NotificationService
 
 def create_web_app() -> Robyn:
     """Create and configure the web application"""
@@ -20,6 +21,13 @@ def create_web_app() -> Robyn:
     auth_service = AuthService()
     firebase_auth_service = FirebaseAuthService(auth_service)
     stock_service = StockService()
+    
+    # Initialize notification service (will reuse existing Firebase app)
+    notification_service = None
+    try:
+        notification_service = NotificationService()
+    except Exception as e:
+        print(f"Warning: NotificationService not available: {e}")
 
     def get_current_user(request: Request) -> Optional[User]:
         """Get current user from Firebase ID token"""
@@ -457,5 +465,67 @@ def create_web_app() -> Robyn:
             else:
                 error_message = "Failed to load index data. Please try again."
             return jinja_template.render_template("fragments/error.html", message=error_message)
+
+    @app.post('/api/notifications/subscribe')
+    async def subscribe_to_notifications(request: Request):
+        """Subscribe device token to stock_update topic"""
+        user = get_current_user(request)
+
+        if not user:
+            return Response(
+                status_code=401,
+                description='{"error": "Authentication required"}',
+                headers={"Content-Type": "application/json"}
+            )
+
+        if not notification_service:
+            return Response(
+                status_code=500,
+                description='{"error": "Notification service not available"}',
+                headers={"Content-Type": "application/json"}
+            )
+
+        try:
+            import json
+            
+            # Parse JSON body for device token
+            if isinstance(request.body, bytes):
+                body_str = request.body.decode('utf-8')
+            else:
+                body_str = request.body
+
+            data = json.loads(body_str)
+            device_token = data.get('token', '')
+
+            if not device_token:
+                return Response(
+                    status_code=400,
+                    description='{"error": "Device token required"}',
+                    headers={"Content-Type": "application/json"}
+                )
+            
+            # Subscribe token to stock_update topic using NotificationService
+            success = notification_service.subscribe_to_topic(device_token, 'stock_update')
+            if success:
+                return Response(
+                    status_code=200,
+                    description='{"success": true, "message": "Successfully subscribed to stock updates"}',
+                    headers={"Content-Type": "application/json"}
+                )
+            else:
+                print(f"Failed to subscribe to topic")
+                return Response(
+                    status_code=400,
+                    description='{"error": "Failed to subscribe to topic"}',
+                    headers={"Content-Type": "application/json"}
+                )
+                
+        except (json.JSONDecodeError, AttributeError) as e:
+            print(f"Invalid request format: {e}")
+            return Response(
+                status_code=400,
+                description='{"error": "Invalid request format"}',
+                headers={"Content-Type": "application/json"}
+            )
 
     return app
