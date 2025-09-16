@@ -506,7 +506,13 @@ def create_web_app() -> Robyn:
             
             # Subscribe token to stock_update topic using NotificationService
             success = notification_service.subscribe_to_topic(device_token, 'stock_update')
+            
             if success:
+                # Save device token to database
+                token_saved = auth_service.save_device_token(user.id, device_token)
+                if not token_saved:
+                    print(f"Warning: Failed to save device token to database for user {user.id}")
+                
                 return Response(
                     status_code=200,
                     description='{"success": true, "message": "Successfully subscribed to stock updates"}',

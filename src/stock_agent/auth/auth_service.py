@@ -33,6 +33,19 @@ class AuthService:
                     UNIQUE(user_id, ticker)
                 )
             """)
+            
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS device_tokens (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    token TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    is_active BOOLEAN DEFAULT 1,
+                    FOREIGN KEY (user_id) REFERENCES users (id),
+                    UNIQUE(user_id, token)
+                )
+            """)
             conn.commit()
 
     def create_user_from_firebase(self, username: str, email: str, firebase_uid: str) -> Optional[User]:
@@ -139,3 +152,46 @@ class AuthService:
                     added_at=datetime.fromisoformat(row[4]) if row[4] else None
                 ))
             return favorites
+
+    def save_device_token(self, user_id: int, token: str) -> bool:
+        """Save or update a device token for a user"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                # Use INSERT OR REPLACE to handle duplicates
+                conn.execute("""
+                    INSERT OR REPLACE INTO device_tokens (user_id, token, updated_at)
+                    VALUES (?, ?, CURRENT_TIMESTAMP)
+                """, (user_id, token))
+                conn.commit()
+                return True
+        except sqlite3.Error as e:
+            print(f"Error saving device token: {e}")
+            return False
+
+    def get_user_device_tokens(self, user_id: int) -> List[str]:
+        """Get all active device tokens for a user"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.execute(
+                    "SELECT token FROM device_tokens WHERE user_id = ? AND is_active = 1",
+                    (user_id,)
+                )
+                rows = cursor.fetchall()
+                return [row[0] for row in rows]
+        except sqlite3.Error as e:
+            print(f"Error getting device tokens: {e}")
+            return []
+
+    def deactivate_device_token(self, user_id: int, token: str) -> bool:
+        """Deactivate a specific device token"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.execute(
+                    "UPDATE device_tokens SET is_active = 0 WHERE user_id = ? AND token = ?",
+                    (user_id, token)
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            print(f"Error deactivating device token: {e}")
+            return False
