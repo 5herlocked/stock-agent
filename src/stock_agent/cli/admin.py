@@ -54,7 +54,7 @@ def list_users(auth_service: AuthService):
 
 
 
-def test_notification(topic: str = "stock_alerts", ticker: str = "AAPL") -> bool:
+def test_notification(topic: str = "stock_update", ticker: str = "AAPL") -> bool:
     """Send a test push notification to all users"""
     try:
         # Initialize notification service
@@ -65,7 +65,7 @@ def test_notification(topic: str = "stock_alerts", ticker: str = "AAPL") -> bool
             ticker=ticker,
             percent_change=5.25,
             current_price=175.50,
-            alert_type="gainer"
+            alert_type="stock_update"
         )
 
         print(f"📱 Sending test notification for {ticker} to topic '{topic}'...")
@@ -97,11 +97,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s create-user john john@example.com
   %(prog)s list-users
-  %(prog)s deactivate-user john
-  %(prog)s activate-user john
-  %(prog)s reset-password john
   %(prog)s test-notification
   %(prog)s test-notification --topic custom_topic --ticker TSLA
         """
@@ -115,30 +111,12 @@ Examples:
 
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
 
-    # Create user command
-    create_parser = subparsers.add_parser('create-user', help='Create a new user')
-    create_parser.add_argument('username', help='Username for the new user')
-    create_parser.add_argument('email', help='Email address for the new user')
-    create_parser.add_argument('--password', help='Password (will prompt if not provided)')
-
     # List users command
     subparsers.add_parser('list-users', help='List all users in the system')
 
-    # Deactivate user command
-    deactivate_parser = subparsers.add_parser('deactivate-user', help='Deactivate a user account')
-    deactivate_parser.add_argument('username', help='Username to deactivate')
-
-    # Activate user command
-    activate_parser = subparsers.add_parser('activate-user', help='Activate a user account')
-    activate_parser.add_argument('username', help='Username to activate')
-
-    # Reset password command
-    reset_parser = subparsers.add_parser('reset-password', help='Reset a user\'s password')
-    reset_parser.add_argument('username', help='Username to reset password for')
-
     # Test notification command
     test_notif_parser = subparsers.add_parser('test-notification', help='Send a test push notification')
-    test_notif_parser.add_argument('--topic', default='stock_alerts', help='Firebase topic to send to (default: stock_alerts)')
+    test_notif_parser.add_argument('--topic', default='stock_updates', help='Firebase topic to send to (default: stock_updates)')
     test_notif_parser.add_argument('--ticker', default='AAPL', help='Stock ticker for test notification (default: AAPL)')
 
     args = parser.parse_args()
