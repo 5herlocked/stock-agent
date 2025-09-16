@@ -161,6 +161,28 @@
             .refresh-btn:hover {
                 background-color: #138496;
             }
+            
+            /* Notification Button */
+            .notification-btn {
+                background-color: #28a745;
+                color: white;
+                border: none;
+                padding: 8px 15px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+                margin-left: 15px;
+            }
+            .notification-btn:hover {
+                background-color: #218838;
+            }
+            .notification-btn.enabled {
+                background-color: #6c757d;
+                cursor: default;
+            }
+            .notification-btn.enabled:hover {
+                background-color: #6c757d;
+            }
             @media (max-width: 768px) {
                 .dashboard-grid {
                     grid-template-columns: 1fr;
@@ -187,6 +209,9 @@
                      hx-swap="outerHTML">
                     <!-- User info will be loaded here -->
                 </div>
+                <button id="enable-notifications" class="notification-btn">
+                    🔔 Enable Notifications
+                </button>
                 <button hx-get="/api/dashboard-favorites"
                         hx-target="#favoritesSection"
                         hx-swap="innerHTML"
@@ -223,10 +248,54 @@
 
         <!-- HTMX Library -->
         <script src="https://unpkg.com/htmx.org@2.0.7"></script>
-        
-        <script src="/static/js/auth-utils.js"></script>
 
-        <!-- HTMX Firebase Auth Integration -->
-        <script type="module" src="/static/js/htmx-firebase-auth.js"></script>
+        <!-- Firebase Authentication -->
+        <script type="module" src="/static/js/firebase-auth.js"></script>
+
+        <!-- Simple Notification Button Handler -->
+        <script>
+            document.addEventListener("DOMContentLoaded", () => {
+                const notificationBtn = document.getElementById("enable-notifications");
+                
+                // Check initial notification permission state
+                function updateNotificationButton() {
+                    if (!("Notification" in window)) {
+                        notificationBtn.style.display = "none";
+                        return;
+                    }
+                    
+                    if (Notification.permission === "granted") {
+                        notificationBtn.textContent = "✅ Notifications Enabled";
+                        notificationBtn.classList.add("enabled");
+                        notificationBtn.disabled = true;
+                    } else if (Notification.permission === "denied") {
+                        notificationBtn.textContent = "🔕 Notifications Blocked";
+                        notificationBtn.classList.add("enabled");
+                        notificationBtn.disabled = true;
+                    } else {
+                        notificationBtn.textContent = "🔔 Enable Notifications";
+                        notificationBtn.style.display = "inline-block";
+                    }
+                }
+                
+                // Handle notification button click
+                notificationBtn.addEventListener("click", async () => {
+                    try {
+                        const permission = await Notification.requestPermission();
+                        if (permission === "granted") {
+                            // Redirect to notifications page for full setup
+                            window.location.href = "/";
+                        } else {
+                            updateNotificationButton();
+                        }
+                    } catch (error) {
+                        console.error("Error requesting notification permission:", error);
+                    }
+                });
+                
+                // Initial button state
+                updateNotificationButton();
+            });
+        </script>
     </body>
 </html>
