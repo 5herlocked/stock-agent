@@ -998,16 +998,16 @@ wheels = [
 
 [[package]]
 name = "polygon-api-client"
-version = "1.15.4"
+version = "1.16.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
     { name = "urllib3" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2c/39/8f2423b65926d7f815370e83acf9b8c09d0965c7cb5b55a78eee52e679f1/polygon_api_client-1.15.4.tar.gz", hash = "sha256:2adb920dac5788732fc95a25dc8650cc843591552c8969c40f5eaaf22aaf7072", size = 37986, upload-time = "2025-09-23T23:25:14.842Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8e/a2/6b877bdce802adacdc1332d7a44a156d25cb98f3f5188d812791037db8a4/polygon_api_client-1.16.2.tar.gz", hash = "sha256:3e602294fe2a06274b455ae2a03db5ed9cd319b34be6dc6605d6899fb8e41a62", size = 44067, upload-time = "2025-10-23T14:14:07.983Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/28/b9/57a53ce17aeb46432b5df3e3ec607d9a0daece740d707798f4f7c423d5b5/polygon_api_client-1.15.4-py3-none-any.whl", hash = "sha256:561b990add5c9a251f42ba1ec85244829a15c09b02f7b08dbf149df8bb509cde", size = 54598, upload-time = "2025-09-23T23:25:13.837Z" },
+    { url = "https://files.pythonhosted.org/packages/3d/bb/adc71c76f61fbde71f87c1e9d0de7724d6d1f789cab7cad3087019501533/polygon_api_client-1.16.2-py3-none-any.whl", hash = "sha256:41002d44060fd2bff0b0ea8b6e59a20fd1adbd1f1e15308c0d9d5b526ec4861c", size = 61978, upload-time = "2025-10-23T14:14:06.983Z" },
 ]
 
 [[package]]
