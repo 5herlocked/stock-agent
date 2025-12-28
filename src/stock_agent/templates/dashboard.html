@@ -161,6 +161,13 @@
             .refresh-btn:hover {
                 background-color: #138496;
             }
+            .container.auth-loading {
+                opacity: 0;
+                pointer-events: none;
+            }
+            .container {
+                transition: opacity 0.2s ease-in-out;
+            }
             
             /* Notification Button */
             .notification-btn {
@@ -194,31 +201,11 @@
         </style>
     </head>
     <body>
-        <div class="container">
-            <div class="header">
-                <div>
-                    <h1>Stock Dashboard</h1>
-                    <nav>
-                        <a href="/" class="nav-link">Dashboard</a>
-                        <a href="/stocks" class="nav-link">Search Stocks</a>
-                    </nav>
-                </div>
-                <div class="user-info" 
-                     hx-get="/api/auth/user-info" 
-                     hx-trigger="load delay:1s"
-                     hx-swap="outerHTML">
-                    <!-- User info will be loaded here -->
-                </div>
-                <button id="enable-notifications" class="notification-btn">
-                    🔔 Enable Notifications
-                </button>
-                <button hx-get="/api/dashboard-favorites"
-                        hx-target="#favoritesSection"
-                        hx-swap="innerHTML"
-                        hx-trigger="click"
-                        class="refresh-btn">
-                    Refresh
-                </button>
+        <div class="container auth-loading">
+            <div hx-get="/api/header?page=dashboard&notifications=true&refresh=true"
+                 hx-trigger="load"
+                 hx-swap="outerHTML">
+                <div class="loading">Loading...</div>
             </div>
 
             <div class="dashboard-grid">
@@ -242,6 +229,26 @@
                          hx-swap="innerHTML">
                         <div class="loading">Loading market indexes...</div>
                     </div>
+                </div>
+            </div>
+
+            <div class="section" style="margin-top: 30px;">
+                <h2>WhatsApp Stock Signals</h2>
+                <div id="whatsappSection"
+                     hx-get="/api/whatsapp/recommendations"
+                     hx-trigger="load delay:2.5s"
+                     hx-swap="innerHTML">
+                    <div class="loading">Loading WhatsApp recommendations...</div>
+                </div>
+            </div>
+
+            <div class="section" style="margin-top: 30px;">
+                <h2>Portfolio Overview</h2>
+                <div id="dashboardPortfolio"
+                     hx-get="/api/dashboard-portfolio"
+                     hx-trigger="load delay:3s"
+                     hx-swap="innerHTML">
+                    <div class="loading">Loading portfolio...</div>
                 </div>
             </div>
         </div>

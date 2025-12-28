@@ -1,0 +1,47 @@
+<div class="header">
+    <div>
+        <h1>{{ page_title }}</h1>
+        <nav>
+            <a href="/" class="nav-link {{ 'active' if current_page == 'dashboard' else '' }}">Dashboard</a>
+            <a href="/stocks" class="nav-link {{ 'active' if current_page == 'stocks' else '' }}">Search Stocks</a>
+            <a href="/portfolio" class="nav-link {{ 'active' if current_page == 'portfolio' else '' }}">Portfolio</a>
+        </nav>
+    </div>
+    <div class="header-actions">
+        <div class="user-info"
+             hx-get="/api/auth/user-info"
+             hx-trigger="load delay:1s"
+             hx-swap="outerHTML">
+            <!-- User info will be loaded here -->
+        </div>
+        {% if show_notifications %}
+        <button id="enable-notifications" class="notification-btn">
+            🔔 Enable Notifications
+        </button>
+        {% endif %}
+        {% if show_refresh %}
+        <button hx-get="/api/dashboard-favorites"
+                hx-target="#favoritesSection"
+                hx-swap="innerHTML"
+                hx-trigger="click"
+                class="refresh-btn">
+            Refresh
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.nav-link.active {
+    font-weight: bold;
+    color: #0056b3;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 2px;
+}
+</style>

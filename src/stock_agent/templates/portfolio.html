@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Portfolio - Stock Agent</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 20px;
+                background-color: #f5f5f5;
+            }
+            .container {
+                max-width: 1400px;
+                margin: 0 auto;
+                background: white;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            }
+            .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 30px;
+                padding-bottom: 15px;
+                border-bottom: 2px solid #eee;
+            }
+            .user-info {
+                font-size: 14px;
+                color: #666;
+            }
+            .logout-btn {
+                background-color: #dc3545;
+                color: white;
+                border: none;
+                padding: 8px 15px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+                margin-left: 10px;
+            }
+            .logout-btn:hover {
+                background-color: #c82333;
+            }
+            .nav-link {
+                color: #007bff;
+                text-decoration: none;
+                margin-right: 15px;
+            }
+            .nav-link:hover {
+                text-decoration: underline;
+            }
+            .section {
+                background: #f8f9fa;
+                padding: 20px;
+                border-radius: 8px;
+                border: 1px solid #dee2e6;
+                margin-bottom: 30px;
+            }
+            .section h2 {
+                margin-top: 0;
+                color: #333;
+                border-bottom: 2px solid #007bff;
+                padding-bottom: 10px;
+            }
+            .loading {
+                text-align: center;
+                color: #666;
+                font-style: italic;
+                padding: 20px;
+            }
+            .positive {
+                color: #28a745;
+            }
+            .negative {
+                color: #dc3545;
+            }
+            .neutral {
+                color: #6c757d;
+            }
+            .container.auth-loading {
+                opacity: 0;
+                pointer-events: none;
+            }
+            .container {
+                transition: opacity 0.2s ease-in-out;
+            }
+            @media (max-width: 768px) {
+                .container {
+                    padding: 15px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container auth-loading">
+            <div hx-get="/api/header?page=portfolio&notifications=false&refresh=false"
+                 hx-trigger="load"
+                 hx-swap="outerHTML">
+                <div class="loading">Loading...</div>
+            </div>
+
+            <!-- Portfolio Summary -->
+            <div class="section">
+                <h2>Portfolio Summary</h2>
+                <div id="portfolioSummary"
+                     hx-get="/api/portfolio/summary"
+                     hx-trigger="load delay:1s">
+                    <div class="loading">Loading summary...</div>
+                </div>
+            </div>
+
+            <!-- Add Trade Form -->
+            <div class="section">
+                <h2>Add Trade</h2>
+                <div id="tradeForm"
+                     hx-get="/api/trade-form"
+                     hx-trigger="load delay:1.5s">
+                    <div class="loading">Loading form...</div>
+                </div>
+            </div>
+
+            <!-- Current Positions -->
+            <div class="section">
+                <h2>Positions</h2>
+                <div id="positions"
+                     hx-get="/api/portfolio/positions"
+                     hx-trigger="load delay:2s">
+                    <div class="loading">Loading positions...</div>
+                </div>
+            </div>
+
+            <!-- Trade History -->
+            <div class="section">
+                <h2>Trade History</h2>
+                <div id="tradeHistory"
+                     hx-get="/api/trades"
+                     hx-trigger="load delay:2.5s">
+                    <div class="loading">Loading trades...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- HTMX Library -->
+        <script src="https://unpkg.com/htmx.org@2.0.7"></script>
+
+        <!-- Firebase Authentication -->
+        <script type="module" src="/static/js/firebase-auth.js"></script>
+    </body>
+</html>

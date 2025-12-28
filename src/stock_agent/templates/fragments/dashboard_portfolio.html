@@ -1,0 +1,100 @@
+<div class="dashboard-portfolio">
+    <div class="portfolio-metric">
+        <span class="metric-label">Portfolio Value:</span>
+        <span class="metric-value">${{ "{:,.0f}".format(total_value) }}</span>
+    </div>
+
+    <div class="portfolio-metric">
+        <span class="metric-label">Total P&L:</span>
+        <span class="metric-value {{ 'positive' if total_pnl > 0 else 'negative' }}">
+            {{ '+' if total_pnl > 0 else '' }}${{ "{:,.0f}".format(total_pnl) }}
+            ({{ '+' if total_pnl_percent > 0 else '' }}{{ "%.1f"|format(total_pnl_percent) }}%)
+        </span>
+    </div>
+
+    {% if top_positions %}
+    <div class="top-positions">
+        <h3>Top Positions</h3>
+        {% for position in top_positions[:3] %}
+        <div class="mini-position">
+            <strong>{{ position.ticker }}</strong>:
+            {{ position.total_quantity }} @ ${{ "%.2f"|format(position.avg_cost) }}
+            <span class="{{ 'positive' if position.pnl > 0 else 'negative' }}">
+                ({{ '+' if position.pnl > 0 else '' }}{{ "%.1f"|format(position.pnl_percent) }}%)
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <a href="/portfolio" class="view-all-link">View Full Portfolio &rarr;</a>
+</div>
+
+<style>
+.dashboard-portfolio {
+    background: white;
+    padding: 20px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+}
+.portfolio-metric {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #eee;
+}
+.portfolio-metric:last-of-type {
+    border-bottom: none;
+}
+.metric-label {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+.metric-value {
+    font-weight: bold;
+    font-size: 16px;
+    color: #333;
+}
+.metric-value.positive {
+    color: #28a745;
+}
+.metric-value.negative {
+    color: #dc3545;
+}
+.top-positions {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+.top-positions h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: #333;
+}
+.mini-position {
+    padding: 8px 0;
+    font-size: 14px;
+    color: #666;
+}
+.mini-position strong {
+    color: #333;
+}
+.mini-position .positive {
+    color: #28a745;
+}
+.mini-position .negative {
+    color: #dc3545;
+}
+.view-all-link {
+    display: inline-block;
+    margin-top: 15px;
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+}
+.view-all-link:hover {
+    text-decoration: underline;
+}
+</style>

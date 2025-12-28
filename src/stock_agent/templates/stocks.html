@@ -184,24 +184,21 @@
             border-radius: 4px;
             margin: 10px 0;
         }
+        .container.auth-loading {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .container {
+            transition: opacity 0.2s ease-in-out;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div>
-                <h1>Stock Search & Favorites</h1>
-                <nav>
-                    <a href="/" class="nav-link">Dashboard</a>
-                    <a href="/stocks" class="nav-link">Search Stocks</a>
-                </nav>
-            </div>
-            <div class="user-info" 
-                 hx-get="/api/auth/user-info" 
-                 hx-trigger="load delay:1s"
-                 hx-swap="outerHTML">
-                <!-- User info will be loaded here -->
-            </div>
+    <div class="container auth-loading">
+        <div hx-get="/api/header?page=stocks&notifications=false&refresh=false"
+             hx-trigger="load"
+             hx-swap="outerHTML">
+            <div class="loading">Loading...</div>
         </div>
 
         <div class="search-section">

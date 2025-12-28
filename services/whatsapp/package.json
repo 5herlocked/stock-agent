@@ -1,0 +1,17 @@
+{
+  "name": "@stock-agent/whatsapp-integration",
+  "version": "1.0.0",
+  "description": "WhatsApp integration for Stock Agent - monitors WhatsApp messages for stock tickers",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "dependencies": {
+    "whatsapp-web.js": "^1.25.0",
+    "qrcode-terminal": "^0.12.0",
+    "axios": "^1.6.0",
+    "dotenv": "^16.0.0"
+  }
+}

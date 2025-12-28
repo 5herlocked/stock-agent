@@ -199,6 +199,19 @@ def create_web_app() -> Robyn:
         template = jinja_template.render_template("report.html", **context)
         return template
 
+    @app.get('/portfolio')
+    async def portfolio_page(request: Request):
+        """Render portfolio page"""
+        # For Firebase auth, we'll let the frontend handle authentication
+        # The template will check Firebase auth state and redirect if needed
+        context = {
+            "framework": "Robyn",
+            "templating_engine": "Jinja2",
+            "user": None  # Firebase auth will handle user info
+        }
+        template = jinja_template.render_template("portfolio.html", **context)
+        return template
+
     # API routes - require Firebase authentication
     @app.get('/api/vapid-public-key')
     def get_vapid_public_key(request: Request):
@@ -533,5 +546,434 @@ def create_web_app() -> Robyn:
                 description='{"error": "Invalid request format"}',
                 headers={"Content-Type": "application/json"}
             )
+
+    @app.post('/api/trades')
+    async def add_trade_endpoint(request: Request):
+        """Add a new trade from form submission"""
+        import json
+        from datetime import date
+
+        user = get_current_user(request)
+        if not user:
+            return Response(
+                status_code=401,
+                description='{"error": "Authentication required"}',
+                headers={"Content-Type": "application/json"}
+            )
+
+        try:
+            # Parse form data
+            if isinstance(request.body, bytes):
+                body_str = request.body.decode('utf-8')
+            else:
+                body_str = request.body
+
+            # Parse URL-encoded form data
+            from urllib.parse import parse_qs
+            form_data = parse_qs(body_str)
+
+            ticker = form_data.get('ticker', [''])[0].upper()
+            action = form_data.get('action', [''])[0].upper()
+            quantity = int(form_data.get('quantity', ['0'])[0])
+            price = float(form_data.get('price', ['0'])[0])
+            trade_date = form_data.get('trade_date', [str(date.today())])[0]
+            notes = form_data.get('notes', [''])[0] or None
+            whatsapp_rec_id = form_data.get('whatsapp_recommendation_id', [''])[0]
+            whatsapp_recommendation_id = int(whatsapp_rec_id) if whatsapp_rec_id else None
+
+            # Validate
+            if not ticker or action not in ['BUY', 'SELL'] or quantity <= 0 or price <= 0:
+                return jinja_template.render_template("fragments/error.html",
+                    message="Invalid trade data. Please check all fields.")
+
+            # Add trade
+            trade_id = auth_service.add_trade(
+                user_id=user.id,
+                ticker=ticker,
+                action=action,
+                quantity=quantity,
+                price=price,
+                trade_date=trade_date,
+                notes=notes,
+                whatsapp_recommendation_id=whatsapp_recommendation_id
+            )
+
+            if not trade_id:
+                return jinja_template.render_template("fragments/error.html",
+                    message="Failed to add trade")
+
+            # If linked to WhatsApp recommendation, mark as accepted
+            if whatsapp_recommendation_id:
+                auth_service.update_whatsapp_recommendation_status(whatsapp_recommendation_id, 'accepted')
+
+            # Return updated trades list
+            trades = auth_service.get_user_trades(user.id)
+            return jinja_template.render_template("fragments/trades_list.html", trades=trades)
+
+        except Exception as e:
+            print(f"Error adding trade: {e}")
+            return jinja_template.render_template("fragments/error.html",
+                message="Failed to add trade. Please try again.")
+
+    @app.get('/api/trades')
+    async def get_trades_endpoint(request: Request):
+        """Get user's trades"""
+        user = get_current_user(request)
+        if not user:
+            return jinja_template.render_template("fragments/error.html", message="Unauthorized")
+
+        try:
+            trades = auth_service.get_user_trades(user.id)
+            return jinja_template.render_template("fragments/trades_list.html", trades=trades)
+        except Exception as e:
+            print(f"Error getting trades: {e}")
+            return jinja_template.render_template("fragments/error.html", message="Failed to load trades")
+
+    @app.delete('/api/trades')
+    async def delete_trade_endpoint(request: Request):
+        """Delete a trade"""
+        user = get_current_user(request)
+        if not user:
+            return jinja_template.render_template("fragments/error.html", message="Unauthorized")
+
+        try:
+            trade_id = int(request.query_params.get('trade_id', '0'))
+            if trade_id <= 0:
+                return jinja_template.render_template("fragments/error.html", message="Invalid trade ID")
+
+            success = auth_service.delete_trade(user.id, trade_id)
+            if not success:
+                return jinja_template.render_template("fragments/error.html", message="Failed to delete trade")
+
+            # Return updated trades list
+            trades = auth_service.get_user_trades(user.id)
+            return jinja_template.render_template("fragments/trades_list.html", trades=trades)
+
+        except Exception as e:
+            print(f"Error deleting trade: {e}")
+            return jinja_template.render_template("fragments/error.html", message="Failed to delete trade")
+
+    @app.get('/api/portfolio/positions')
+    async def get_portfolio_positions_endpoint(request: Request):
+        """Get portfolio positions with current prices and P&L"""
+        user = get_current_user(request)
+        if not user:
+            return jinja_template.render_template("fragments/error.html", message="Unauthorized")
+
+        try:
+            positions = auth_service.get_user_positions(user.id)
+
+            if not positions:
+                return jinja_template.render_template("fragments/portfolio_positions.html", positions=[])
+
+            # Get current prices
+            tickers = [p['ticker'] for p in positions]
+            stock_data = stock_service.get_stock_data(tickers)
+
+            prices = {s.ticker: s.price for s in stock_data}
+
+            # Calculate P&L
+            for position in positions:
+                ticker = position['ticker']
+                current_price = prices.get(ticker, 0)
+
+                position['current_price'] = current_price
+                position['market_value'] = current_price * position['total_quantity']
+                position['pnl'] = (current_price - position['avg_cost']) * position['total_quantity']
+                position['pnl_percent'] = ((current_price - position['avg_cost']) / position['avg_cost'] * 100) if position['avg_cost'] > 0 else 0
+
+            return jinja_template.render_template("fragments/portfolio_positions.html", positions=positions)
+
+        except Exception as e:
+            print(f"Error loading positions: {e}")
+            return jinja_template.render_template("fragments/error.html", message="Failed to load positions")
+
+    @app.get('/api/portfolio/summary')
+    async def get_portfolio_summary_endpoint(request: Request):
+        """Get portfolio summary metrics"""
+        user = get_current_user(request)
+        if not user:
+            return jinja_template.render_template("fragments/error.html", message="Unauthorized")
+
+        try:
+            positions = auth_service.get_user_positions(user.id)
+            trades = auth_service.get_user_trades(user.id)
+
+            if not positions:
+                return jinja_template.render_template("fragments/portfolio_summary.html",
+                    total_value=0, total_cost=0, total_pnl=0, total_pnl_percent=0,
+                    position_count=0, trade_count=len(trades))
+
+            # Get current prices
+            tickers = [p['ticker'] for p in positions]
+            stock_data = stock_service.get_stock_data(tickers)
+            prices = {s.ticker: s.price for s in stock_data}
+
+            # Calculate totals
+            total_value = 0
+            total_cost = 0
+
+            for position in positions:
+                current_price = prices.get(position['ticker'], 0)
+                total_value += current_price * position['total_quantity']
+                total_cost += position['total_cost_basis']
+
+            total_pnl = total_value - total_cost
+            total_pnl_percent = (total_pnl / total_cost * 100) if total_cost > 0 else 0
+
+            return jinja_template.render_template("fragments/portfolio_summary.html",
+                total_value=total_value,
+                total_cost=total_cost,
+                total_pnl=total_pnl,
+                total_pnl_percent=total_pnl_percent,
+                position_count=len(positions),
+                trade_count=len(trades))
+
+        except Exception as e:
+            print(f"Error loading summary: {e}")
+            return jinja_template.render_template("fragments/error.html", message="Failed to load summary")
+
+    @app.get('/api/dashboard-portfolio')
+    async def get_dashboard_portfolio_endpoint(request: Request):
+        """Get compact portfolio data for dashboard"""
+        user = get_current_user(request)
+        if not user:
+            return jinja_template.render_template("fragments/error.html", message="Unauthorized")
+
+        try:
+            positions = auth_service.get_user_positions(user.id)
+
+            if not positions:
+                return jinja_template.render_template("fragments/dashboard_portfolio.html",
+                    total_value=0, total_pnl=0, total_pnl_percent=0, top_positions=[])
+
+            # Get current prices
+            tickers = [p['ticker'] for p in positions]
+            stock_data = stock_service.get_stock_data(tickers)
+            prices = {s.ticker: s.price for s in stock_data}
+
+            # Calculate P&L for each position
+            total_value = 0
+            total_cost = 0
+
+            for position in positions:
+                current_price = prices.get(position['ticker'], 0)
+                position['current_price'] = current_price
+                position['market_value'] = current_price * position['total_quantity']
+                position['pnl'] = (current_price - position['avg_cost']) * position['total_quantity']
+                position['pnl_percent'] = ((current_price - position['avg_cost']) / position['avg_cost'] * 100) if position['avg_cost'] > 0 else 0
+
+                total_value += position['market_value']
+                total_cost += position['total_cost_basis']
+
+            total_pnl = total_value - total_cost
+            total_pnl_percent = (total_pnl / total_cost * 100) if total_cost > 0 else 0
+
+            # Sort by market value
+            positions.sort(key=lambda x: x['market_value'], reverse=True)
+
+            return jinja_template.render_template("fragments/dashboard_portfolio.html",
+                total_value=total_value,
+                total_pnl=total_pnl,
+                total_pnl_percent=total_pnl_percent,
+                top_positions=positions[:3])
+
+        except Exception as e:
+            print(f"Error loading dashboard portfolio: {e}")
+            return jinja_template.render_template("fragments/error.html", message="Failed to load portfolio")
+
+    @app.get('/api/header')
+    async def get_header_fragment(request: Request):
+        """Get the header fragment"""
+        current_page = request.query_params.get('page', '')
+        show_notifications = request.query_params.get('notifications', 'false') == 'true'
+        show_refresh = request.query_params.get('refresh', 'false') == 'true'
+
+        # Determine title based on page
+        page_titles = {
+            'dashboard': 'Stock Dashboard',
+            'stocks': 'Stock Search & Favorites',
+            'portfolio': 'Portfolio'
+        }
+        page_title = page_titles.get(current_page, 'Stock Agent')
+
+        return jinja_template.render_template("fragments/header.html",
+            page_title=page_title,
+            current_page=current_page,
+            show_notifications=show_notifications,
+            show_refresh=show_refresh)
+
+    @app.get('/api/trade-form')
+    async def get_trade_form_endpoint(request: Request):
+        """Get the trade form fragment"""
+        from datetime import date
+
+        user = get_current_user(request)
+        if not user:
+            return jinja_template.render_template("fragments/error.html", message="Unauthorized")
+
+        try:
+            return jinja_template.render_template("fragments/trade_form.html",
+                ticker='',
+                recommendation_id=None,
+                today=str(date.today()))
+        except Exception as e:
+            print(f"Error loading trade form: {e}")
+            return jinja_template.render_template("fragments/error.html", message="Failed to load form")
+
+    @app.post('/api/whatsapp/recommendations/:id/accept')
+    async def accept_whatsapp_recommendation_endpoint(request: Request):
+        """Accept a WhatsApp recommendation and return trade form"""
+        from datetime import date
+
+        user = get_current_user(request)
+        if not user:
+            return jinja_template.render_template("fragments/error.html", message="Unauthorized")
+
+        try:
+            rec_id = int(request.path_params.get('id', '0'))
+            if rec_id <= 0:
+                return jinja_template.render_template("fragments/error.html", message="Invalid recommendation ID")
+
+            # Get recommendation details
+            recommendations = auth_service.get_whatsapp_recommendations(limit=1000)
+            recommendation = next((r for r in recommendations if r['id'] == rec_id), None)
+
+            if not recommendation:
+                return jinja_template.render_template("fragments/error.html", message="Recommendation not found")
+
+            # Return trade form pre-filled with ticker
+            return jinja_template.render_template("fragments/trade_form.html",
+                ticker=recommendation['ticker'],
+                recommendation_id=rec_id,
+                today=str(date.today()))
+
+        except Exception as e:
+            print(f"Error accepting recommendation: {e}")
+            return jinja_template.render_template("fragments/error.html", message="Failed to accept recommendation")
+
+    @app.post('/api/whatsapp/recommendations/:id/reject')
+    async def reject_whatsapp_recommendation_endpoint(request: Request):
+        """Reject a WhatsApp recommendation"""
+        user = get_current_user(request)
+        if not user:
+            return jinja_template.render_template("fragments/error.html", message="Unauthorized")
+
+        try:
+            rec_id = int(request.path_params.get('id', '0'))
+            if rec_id <= 0:
+                return jinja_template.render_template("fragments/error.html", message="Invalid recommendation ID")
+
+            # Update status
+            success = auth_service.update_whatsapp_recommendation_status(rec_id, 'rejected')
+
+            if not success:
+                return jinja_template.render_template("fragments/error.html", message="Failed to reject recommendation")
+
+            # Return updated recommendations list
+            recommendations = auth_service.get_whatsapp_recommendations(limit=50)
+            return jinja_template.render_template("fragments/whatsapp_recommendations.html",
+                recommendations=recommendations)
+
+        except Exception as e:
+            print(f"Error rejecting recommendation: {e}")
+            return jinja_template.render_template("fragments/error.html", message="Failed to reject recommendation")
+
+    @app.post('/api/whatsapp/message')
+    async def receive_whatsapp_message(request: Request):
+        """Receive WhatsApp messages and extract stock recommendations"""
+        import json
+
+        try:
+            # Parse JSON body
+            if isinstance(request.body, bytes):
+                body_str = request.body.decode('utf-8')
+            else:
+                body_str = request.body
+
+            data = json.loads(body_str)
+            tickers = data.get('tickers', [])
+            from_sender = data.get('from', '')
+            chat_name = data.get('chatName', '')
+            message = data.get('message', '')
+            timestamp = data.get('timestamp', '')
+
+            if not tickers or not from_sender:
+                return Response(
+                    status_code=400,
+                    description='{"error": "Missing required fields"}',
+                    headers={"Content-Type": "application/json"}
+                )
+
+            saved_count = 0
+            # Process each ticker
+            for ticker in tickers:
+                try:
+                    # Get stock data from Polygon API
+                    stock_data = stock_service.get_stock_data([ticker])
+
+                    if stock_data:
+                        stock = stock_data[0]
+                        success = auth_service.save_whatsapp_recommendation(
+                            ticker=ticker,
+                            company_name=stock.company_name,
+                            price=stock.price,
+                            change_percent=stock.change_percent,
+                            from_sender=from_sender,
+                            chat_name=chat_name,
+                            original_message=message,
+                            received_at=timestamp
+                        )
+                        if success:
+                            saved_count += 1
+                            print(f"Saved WhatsApp recommendation: {ticker} from {from_sender}")
+                    else:
+                        # Save without stock data if API fails
+                        success = auth_service.save_whatsapp_recommendation(
+                            ticker=ticker,
+                            company_name=None,
+                            price=None,
+                            change_percent=None,
+                            from_sender=from_sender,
+                            chat_name=chat_name,
+                            original_message=message,
+                            received_at=timestamp
+                        )
+                        if success:
+                            saved_count += 1
+
+                except Exception as e:
+                    print(f"Error processing ticker {ticker}: {e}")
+                    continue
+
+            return Response(
+                status_code=200,
+                description=json.dumps({"success": True, "saved": saved_count, "total": len(tickers)}),
+                headers={"Content-Type": "application/json"}
+            )
+
+        except (json.JSONDecodeError, AttributeError) as e:
+            print(f"Invalid WhatsApp message format: {e}")
+            return Response(
+                status_code=400,
+                description='{"error": "Invalid request format"}',
+                headers={"Content-Type": "application/json"}
+            )
+
+    @app.get('/api/whatsapp/recommendations')
+    async def get_whatsapp_recommendations_fragment(request: Request):
+        """Get recent WhatsApp recommendations as HTML fragment"""
+        user = get_current_user(request)
+        if not user:
+            return jinja_template.render_template("fragments/error.html", message="Unauthorized")
+
+        try:
+            limit = int(request.query_params.get('limit', '20'))
+            recommendations = auth_service.get_whatsapp_recommendations(limit)
+
+            return jinja_template.render_template("fragments/whatsapp_recommendations.html", recommendations=recommendations)
+        except Exception as e:
+            print(f"Error getting WhatsApp recommendations: {e}")
+            return jinja_template.render_template("fragments/error.html", message="Failed to load WhatsApp recommendations")
 
     return app

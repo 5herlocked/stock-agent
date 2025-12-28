@@ -1,0 +1,70 @@
+<div class="summary-grid">
+    <div class="summary-card">
+        <div class="summary-label">Total Portfolio Value</div>
+        <div class="summary-value">${{ "{:,.2f}".format(total_value) }}</div>
+    </div>
+
+    <div class="summary-card">
+        <div class="summary-label">Total Cost Basis</div>
+        <div class="summary-value">${{ "{:,.2f}".format(total_cost) }}</div>
+    </div>
+
+    <div class="summary-card">
+        <div class="summary-label">Unrealized P&L</div>
+        <div class="summary-value {{ 'positive' if total_pnl > 0 else 'negative' if total_pnl < 0 else 'neutral' }}">
+            {{ '+' if total_pnl > 0 else '' }}${{ "{:,.2f}".format(total_pnl) }}
+        </div>
+    </div>
+
+    <div class="summary-card">
+        <div class="summary-label">Return %</div>
+        <div class="summary-value {{ 'positive' if total_pnl_percent > 0 else 'negative' if total_pnl_percent < 0 else 'neutral' }}">
+            {{ '+' if total_pnl_percent > 0 else '' }}{{ "%.2f"|format(total_pnl_percent) }}%
+        </div>
+    </div>
+
+    <div class="summary-card">
+        <div class="summary-label">Positions</div>
+        <div class="summary-value">{{ position_count }}</div>
+    </div>
+
+    <div class="summary-card">
+        <div class="summary-label">Total Trades</div>
+        <div class="summary-value">{{ trade_count }}</div>
+    </div>
+</div>
+
+<style>
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+.summary-card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    text-align: center;
+}
+.summary-label {
+    font-size: 14px;
+    color: #6c757d;
+    margin-bottom: 10px;
+}
+.summary-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+}
+.summary-value.positive {
+    color: #28a745;
+}
+.summary-value.negative {
+    color: #dc3545;
+}
+.summary-value.neutral {
+    color: #6c757d;
+}
+</style>

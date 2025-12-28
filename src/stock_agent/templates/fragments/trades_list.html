@@ -1,0 +1,97 @@
+{% if trades %}
+<table class="trades-table">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Ticker</th>
+            <th>Action</th>
+            <th>Quantity</th>
+            <th>Price</th>
+            <th>Total</th>
+            <th>Notes</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for trade in trades %}
+        <tr>
+            <td>{{ trade.trade_date }}</td>
+            <td><strong>{{ trade.ticker }}</strong></td>
+            <td class="{{ 'buy-action' if trade.action == 'BUY' else 'sell-action' }}">
+                {{ trade.action }}
+            </td>
+            <td>{{ trade.quantity }}</td>
+            <td>${{ "%.2f"|format(trade.price) }}</td>
+            <td>${{ "%.2f"|format(trade.price * trade.quantity) }}</td>
+            <td>{{ trade.notes or '-' }}</td>
+            <td>
+                <button hx-delete="/api/trades?trade_id={{ trade.id }}"
+                        hx-target="#tradeHistory"
+                        hx-confirm="Delete this trade?"
+                        class="btn-delete">
+                    Delete
+                </button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="no-trades">
+    <p>No trades yet! Add your first trade above.</p>
+</div>
+{% endif %}
+
+<style>
+.trades-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    background: white;
+}
+.trades-table th,
+.trades-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+}
+.trades-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+    position: sticky;
+    top: 0;
+}
+.trades-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+.buy-action {
+    color: #28a745;
+    font-weight: 600;
+}
+.sell-action {
+    color: #dc3545;
+    font-weight: 600;
+}
+.btn-delete {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+.btn-delete:hover {
+    background-color: #c82333;
+}
+.no-trades {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+.no-trades p {
+    font-size: 16px;
+    margin: 0;
+}
+</style>

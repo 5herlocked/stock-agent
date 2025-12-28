@@ -5,11 +5,10 @@
 
 // Firebase imports using CDN
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
-import { 
-    getAuth, 
-    signInWithEmailAndPassword, 
-    createUserWithEmailAndPassword,
-    signOut, 
+import {
+    getAuth,
+    signInWithEmailAndPassword,
+    signOut,
     onAuthStateChanged,
     updateProfile
 } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js';
@@ -94,10 +93,10 @@ class FirebaseAuthManager {
      */
     handleAuthStateChange(user) {
         const isAuthenticated = !!user;
-        
+
         // Trigger custom event for other components
         const authEvent = new CustomEvent('auth-state-changed', {
-            detail: { 
+            detail: {
                 authenticated: isAuthenticated,
                 user: user ? {
                     email: user.email,
@@ -108,11 +107,18 @@ class FirebaseAuthManager {
         });
         document.dispatchEvent(authEvent);
 
-        // Handle page redirects
+        // Handle page redirects and visibility
         if (!isAuthenticated && this.isProtectedPage()) {
+            // Redirect immediately without showing content
             window.location.href = '/login';
         } else if (isAuthenticated && window.location.pathname === '/login') {
             window.location.href = '/';
+        } else {
+            // Auth state determined - show content
+            const container = document.querySelector('.container');
+            if (container) {
+                container.classList.remove('auth-loading');
+            }
         }
     }
 
@@ -120,7 +126,7 @@ class FirebaseAuthManager {
      * Check if current page requires authentication
      */
     isProtectedPage() {
-        const protectedPaths = ['/', '/stocks', '/report', '/notifications'];
+        const protectedPaths = ['/', '/stocks', '/report', '/notifications', '/portfolio'];
         return protectedPaths.includes(window.location.pathname);
     }
 

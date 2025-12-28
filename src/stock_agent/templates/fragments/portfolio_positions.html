@@ -1,0 +1,95 @@
+{% if positions %}
+<table class="positions-table">
+    <thead>
+        <tr>
+            <th>Ticker</th>
+            <th>Quantity</th>
+            <th>Avg Cost</th>
+            <th>Current Price</th>
+            <th>Market Value</th>
+            <th>P&L</th>
+            <th>P&L %</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for position in positions %}
+        <tr>
+            <td><strong>{{ position.ticker }}</strong></td>
+            <td>{{ position.total_quantity }}</td>
+            <td>${{ "%.2f"|format(position.avg_cost) }}</td>
+            <td>${{ "%.2f"|format(position.current_price) }}</td>
+            <td>${{ "%.2f"|format(position.market_value) }}</td>
+            <td class="{{ 'positive' if position.pnl > 0 else 'negative' if position.pnl < 0 else 'neutral' }}">
+                {{ '+' if position.pnl > 0 else '' }}${{ "%.2f"|format(position.pnl) }}
+            </td>
+            <td class="{{ 'positive' if position.pnl_percent > 0 else 'negative' if position.pnl_percent < 0 else 'neutral' }}">
+                {{ '+' if position.pnl_percent > 0 else '' }}{{ "%.2f"|format(position.pnl_percent) }}%
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="no-positions">
+    <p>No open positions. Add some trades to get started!</p>
+</div>
+{% endif %}
+
+<style>
+.positions-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    background: white;
+}
+.positions-table th,
+.positions-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+}
+.positions-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+    position: sticky;
+    top: 0;
+}
+.positions-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+.positions-table td:nth-child(3),
+.positions-table td:nth-child(4),
+.positions-table td:nth-child(5),
+.positions-table td:nth-child(6),
+.positions-table td:nth-child(7) {
+    text-align: right;
+}
+.positions-table th:nth-child(3),
+.positions-table th:nth-child(4),
+.positions-table th:nth-child(5),
+.positions-table th:nth-child(6),
+.positions-table th:nth-child(7) {
+    text-align: right;
+}
+.positive {
+    color: #28a745;
+    font-weight: 600;
+}
+.negative {
+    color: #dc3545;
+    font-weight: 600;
+}
+.neutral {
+    color: #6c757d;
+}
+.no-positions {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+.no-positions p {
+    font-size: 16px;
+    margin: 0;
+}
+</style>

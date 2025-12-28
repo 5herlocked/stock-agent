@@ -16,6 +16,26 @@ The system is built on a carefully chosen technology stack. Python handles backe
 
 Our frontend uses vanilla JavaScript and HTMX, creating an interactive experience without unnecessary complexity. The entire system is managed through UV, ensuring clean and reproducible Python environments.
 
+### Monorepo Structure
+
+This project follows a monorepo architecture with multiple services:
+
+```
+stock-agent/
+├── src/                    # Python backend (Robyn API, Firebase auth, stock data)
+├── services/
+│   └── whatsapp/          # Node.js WhatsApp integration service
+└── ...
+```
+
+### WhatsApp Integration
+
+The WhatsApp integration service monitors specific WhatsApp groups for stock ticker mentions. When configured senders discuss stocks, the system automatically extracts tickers, fetches real-time data from Polygon API, and displays them on the dashboard as "WhatsApp Stock Signals."
+
+This creates a seamless bridge between informal stock discussions and structured market data tracking.
+
+See [services/whatsapp/README.md](services/whatsapp/README.md) for detailed setup instructions.
+
 ## Setup and Installation
 
 Setting up Stock Agent is straightforward. Follow these steps precisely:
@@ -50,6 +70,17 @@ FIREBASE_PROJECT_ID=[your-project]
 ```bash
 uv run python -m stock_agent.main
 ```
+
+6. (Optional) Set up WhatsApp Integration
+```bash
+cd services/whatsapp
+npm install
+cp .env.example .env
+# Edit .env with your configuration
+npm start
+```
+
+See the [WhatsApp Integration README](services/whatsapp/README.md) for detailed instructions.
 
 ## Notification Strategy
 

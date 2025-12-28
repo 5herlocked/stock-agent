@@ -15,3 +15,10 @@ firebase_creds.json
 
 data/
 server.log
+
+# WhatsApp Integration (Node.js)
+services/whatsapp/node_modules/
+services/whatsapp/.wwebjs_auth/
+services/whatsapp/.wwebjs_cache/
+services/whatsapp/.env
+services/whatsapp/package-lock.json

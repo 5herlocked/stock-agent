@@ -1,0 +1,136 @@
+{% if recommendations %}
+    <div class="stock-grid">
+        {% for rec in recommendations %}
+        <div class="stock-card">
+            <div class="stock-ticker">{{ rec.ticker }}</div>
+            {% if rec.company_name %}
+            <div class="stock-name">{{ rec.company_name }}</div>
+            {% endif %}
+
+            {% if rec.price %}
+            <div class="stock-price">${{ "%.2f"|format(rec.price) }}</div>
+            {% if rec.change_percent is not none %}
+            <div class="stock-change {{ 'positive' if rec.change_percent > 0 else 'negative' if rec.change_percent < 0 else 'neutral' }}">
+                {{ '+' if rec.change_percent > 0 else '' }}{{ "%.2f"|format(rec.change_percent) }}%
+            </div>
+            {% endif %}
+            {% endif %}
+
+            <div class="whatsapp-meta">
+                <div class="sender">From: {{ rec.from_sender }}</div>
+                <div class="chat">Chat: {{ rec.chat_name }}</div>
+                <div class="message" title="{{ rec.original_message }}">{{ rec.original_message[:50] }}{% if rec.original_message|length > 50 %}...{% endif %}</div>
+                <div class="timestamp">{{ rec.received_at }}</div>
+            </div>
+
+            <div class="recommendation-actions">
+                {% if rec.status == 'pending' %}
+                    <button hx-post="/api/whatsapp/recommendations/{{ rec.id }}/accept"
+                            hx-target="#tradeFormModal"
+                            hx-swap="innerHTML"
+                            class="btn-accept">
+                        Accept & Trade
+                    </button>
+                    <button hx-post="/api/whatsapp/recommendations/{{ rec.id }}/reject"
+                            hx-target="#whatsappSection"
+                            hx-swap="innerHTML"
+                            class="btn-reject">
+                        Reject
+                    </button>
+                {% elif rec.status == 'accepted' %}
+                    <span class="status-badge accepted">✓ Accepted</span>
+                {% elif rec.status == 'rejected' %}
+                    <span class="status-badge rejected">✗ Rejected</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Trade Form Modal -->
+    <div id="tradeFormModal" class="modal"></div>
+
+    <style>
+        .whatsapp-meta {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #e9ecef;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .whatsapp-meta > div {
+            margin-bottom: 4px;
+        }
+        .whatsapp-meta .sender {
+            font-weight: 600;
+            color: #495057;
+        }
+        .whatsapp-meta .message {
+            font-style: italic;
+            margin-top: 8px;
+            padding: 8px;
+            background-color: #e7f3ff;
+            border-radius: 4px;
+            color: #004085;
+        }
+        .whatsapp-meta .timestamp {
+            font-size: 10px;
+            color: #adb5bd;
+            margin-top: 4px;
+        }
+        .recommendation-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .btn-accept {
+            flex: 1;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .btn-reject {
+            flex: 1;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-badge {
+            display: block;
+            padding: 8px;
+            text-align: center;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-badge.accepted {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-badge.rejected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .modal {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+    </style>
+{% else %}
+    <div class="no-favorites">
+        <p>No WhatsApp recommendations yet!</p>
+        <p>Stock tickers from WhatsApp messages will appear here.</p>
+    </div>
+{% endif %}
